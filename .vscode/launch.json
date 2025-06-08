@@ -9,7 +9,7 @@
             "program": "${workspaceFolder}/cmd/photo-sorter",
             "args": [
                 "-src",
-                "./202402",
+                "./test_source",
                 "-dst",
                 "./sorted_media",
                 "-workers",

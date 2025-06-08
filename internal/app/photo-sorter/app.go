@@ -15,6 +15,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// dirStats 用於統計目錄資訊
+type dirStats struct {
+	path      string
+	fileCount int
+	subDirs   map[string]*dirStats
+}
+
 type App struct {
 	config *config.Config
 	logger *logger.Logger
@@ -191,6 +198,11 @@ func (a *App) Run(ctx context.Context) error {
 	close(results)
 
 	// 輸出統計資訊
+	a.logger.LogInfo("處理完成",
+		zap.Int("total_files", a.stats.totalFiles),
+		zap.Int("success_count", a.stats.successCount),
+		zap.Int("failure_count", a.stats.failureCount),
+	)
 	fmt.Printf("\n處理完成:\n")
 	fmt.Printf("總檔案數: %d\n", a.stats.totalFiles)
 	fmt.Printf("成功處理: %d\n", a.stats.successCount)
@@ -198,10 +210,14 @@ func (a *App) Run(ctx context.Context) error {
 
 	// 輸出不支援的檔案格式統計
 	if len(a.stats.unsupportedExts) > 0 {
-		fmt.Printf("\n不支援的檔案格式:\n")
-		for ext, count := range a.stats.unsupportedExts {
-			fmt.Printf("%s: %d 個檔案\n", ext, count)
-		}
+		a.logger.LogInfo("不支援的檔案格式統計",
+			zap.Any("unsupported_formats", a.stats.unsupportedExts),
+		)
+	}
+
+	// 統計每個資料夾的檔案數量
+	if err := a.printDirectoryStats(); err != nil {
+		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
 	}
 
 	return nil
@@ -220,5 +236,84 @@ func (a *App) worker(ctx context.Context, id int, jobs <-chan string, results ch
 			err := a.ProcessFile(path)
 			results <- err
 		}
+	}
+}
+
+func (a *App) printDirectoryStats() error {
+	root := &dirStats{
+		path:    a.config.DstDir,
+		subDirs: make(map[string]*dirStats),
+	}
+
+	err := filepath.Walk(a.config.DstDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 跳過根目錄
+		if path == a.config.DstDir {
+			return nil
+		}
+
+		// 取得相對路徑
+		relPath, err := filepath.Rel(a.config.DstDir, path)
+		if err != nil {
+			return err
+		}
+
+		// 分割路徑
+		parts := strings.Split(relPath, string(filepath.Separator))
+		current := root
+
+		// 建立或更新目錄統計
+		for i, part := range parts {
+			if i == len(parts)-1 {
+				// 這是檔案
+				if !info.IsDir() {
+					current.fileCount++
+				}
+			} else {
+				// 這是目錄
+				if _, exists := current.subDirs[part]; !exists {
+					current.subDirs[part] = &dirStats{
+						path:    filepath.Join(current.path, part),
+						subDirs: make(map[string]*dirStats),
+					}
+				}
+				current = current.subDirs[part]
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// 輸出統計資訊
+	a.logger.LogInfo("sorted_media 資料夾統計資訊")
+	a.printDirStatsRecursive(root, 0)
+
+	return nil
+}
+
+func (a *App) printDirStatsRecursive(dir *dirStats, level int) {
+	// 計算總檔案數（包含子目錄）
+	totalFiles := dir.fileCount
+	for _, subDir := range dir.subDirs {
+		totalFiles += subDir.fileCount
+	}
+
+	// 輸出當前目錄資訊
+	indent := strings.Repeat("  ", level)
+	dirName := filepath.Base(dir.path)
+	if dirName == "." {
+		dirName = "sorted_media"
+	}
+	a.logger.LogInfo(fmt.Sprintf("%s%s/ (%d 個檔案)", indent, dirName, totalFiles))
+
+	// 遞迴輸出子目錄
+	for _, subDir := range dir.subDirs {
+		a.printDirStatsRecursive(subDir, level+1)
 	}
 }
