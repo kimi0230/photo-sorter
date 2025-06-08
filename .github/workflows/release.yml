@@ -56,7 +56,7 @@ jobs:
           cp $BINARY_NAME $RELEASE_DIR/photo-sorter
           
           # 複製配置檔案
-          cp config/config.yaml $RELEASE_DIR/
+          cp config/config.yaml $RELEASE_DIR/config
           
           # 建立壓縮檔
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
