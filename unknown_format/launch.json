@@ -1,0 +1,67 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "啟動 photo-sorter",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/photo-sorter",
+            "args": [
+                "-src",
+                ".",
+                "-dst",
+                ".",
+                "-workers",
+                "4",
+                // "-dry-run"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "啟動 photo-sorter (自訂參數)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/photo-sorter",
+            "args": [
+                "-src",
+                "${input:srcDir}",
+                "-dst",
+                "${input:dstDir}",
+                "-workers",
+                "${input:workers}",
+                "-dry-run"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "測試",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${fileDirname}",
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "srcDir",
+            "type": "promptString",
+            "description": "請輸入原始照片資料夾路徑",
+            "default": "."
+        },
+        {
+            "id": "dstDir",
+            "type": "promptString",
+            "description": "請輸入目標資料夾路徑",
+            "default": "."
+        },
+        {
+            "id": "workers",
+            "type": "promptString",
+            "description": "請輸入併發數",
+            "default": "4"
+        }
+    ]
+}
