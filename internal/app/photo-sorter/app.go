@@ -102,6 +102,11 @@ func (a *App) copyFile(src, dst string) error {
 }
 
 func (a *App) Run(ctx context.Context) error {
+	a.logger.LogInfo("開始處理",
+		zap.String("來源資料夾", a.config.SrcDir),
+		zap.String("目標資料夾", a.config.DstDir),
+	)
+
 	if err := a.printDirectoryStats(a.config.SrcDir); err != nil {
 		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
 	}
@@ -139,6 +144,15 @@ func (a *App) Run(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
+
+			// 檢查是否為目標目錄或其子目錄
+			if strings.HasPrefix(path, a.config.DstDir) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
 			if !info.IsDir() {
 				// 檢查是否要忽略此檔案
 				if a.config.ShouldIgnore(path) {
