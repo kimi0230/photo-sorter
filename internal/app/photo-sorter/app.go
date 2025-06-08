@@ -11,7 +11,7 @@ import (
 
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/exif"
-	"photo-sorter/pkg/logger"
+	"photo-sorter/internal/pkg/logger"
 
 	"go.uber.org/zap"
 )
