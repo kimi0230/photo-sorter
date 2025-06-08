@@ -1,0 +1,52 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - 'v*'  # 當推送 v 開頭的標籤時觸發
+  workflow_dispatch:  # 允許手動觸發
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 獲取完整的 git 歷史
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Get version from config
+        id: get_version
+        run: |
+          # 使用 yq 來讀取 YAML 檔案中的版本號
+          if command -v yq &> /dev/null; then
+            VERSION=$(yq eval '.version' config/config.yaml)
+          else
+            # 如果沒有 yq，使用 grep 和 sed 來提取版本號
+            VERSION=$(grep '^version:' config/config.yaml | sed 's/version: *//')
+          fi
+          
+          # 如果版本號為空，使用 git describe
+          if [ -z "$VERSION" ]; then
+            VERSION=$(git describe --tags --always --dirty)
+          fi
+          
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build
+        run: |
+          go build -ldflags "-X photo-sorter/internal/pkg/version.Version=${{ env.VERSION }} \
+            -X photo-sorter/internal/pkg/version.BuildTime=$(date +%Y-%m-%d_%H:%M:%S) \
+            -X photo-sorter/internal/pkg/version.GitCommit=$(git rev-parse HEAD)" \
+            -o photo-sorter cmd/photo-sorter/main.go
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: photo-sorter
+          path: photo-sorter 

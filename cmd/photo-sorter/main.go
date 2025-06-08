@@ -11,6 +11,7 @@ import (
 
 	photosorter "photo-sorter/internal/app/photo-sorter"
 	"photo-sorter/internal/pkg/config"
+	"photo-sorter/internal/pkg/version"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 	workers    int
 	dryRun     bool
 	configPath string
+	showVer    bool
 )
 
 func init() {
@@ -27,11 +29,18 @@ func init() {
 	flag.IntVar(&workers, "workers", 4, "最大併發數")
 	flag.BoolVar(&dryRun, "dry-run", false, "僅顯示將搬移的路徑，不實際執行")
 	flag.StringVar(&configPath, "c", "config/config.yaml", "配置檔案路徑")
+	flag.BoolVar(&showVer, "version", false, "顯示版本資訊")
 }
 
 func main() {
 	// 解析命令列參數
 	flag.Parse()
+
+	// 顯示版本資訊
+	if showVer {
+		fmt.Println(version.GetVersion())
+		os.Exit(0)
+	}
 
 	// 載入配置
 	cfg, err := config.LoadConfig(configPath)
