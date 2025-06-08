@@ -14,7 +14,8 @@ type Config struct {
 	DstDir  string   `yaml:"dst_dir"`
 	Workers int      `yaml:"workers"`
 	DryRun  bool     `yaml:"dry_run"`
-	Ignore  []string `yaml:"ignore"` // 要忽略的檔案類型
+	Ignore  []string `yaml:"ignore"`  // 要忽略的檔案類型
+	Formats []string `yaml:"formats"` // 支援的檔案格式
 }
 
 func LoadConfig() (*Config, error) {
@@ -29,6 +30,10 @@ func LoadConfig() (*Config, error) {
 			".go", ".mod", ".sum",
 			".md", ".log", ".yaml",
 			".sample",
+		},
+		Formats: []string{
+			".jpg", ".jpeg", ".heic", ".png",
+			".mp4", ".mov",
 		},
 	}
 
@@ -86,6 +91,16 @@ func (c *Config) ShouldIgnore(path string) bool {
 	return false
 }
 
+func (c *Config) IsSupportedFormat(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	for _, format := range c.Formats {
+		if ext == strings.ToLower(format) {
+			return true
+		}
+	}
+	return false
+}
+
 func CreateDefaultConfig() error {
 	config := &Config{
 		SrcDir:  ".",
@@ -97,6 +112,10 @@ func CreateDefaultConfig() error {
 			".go", ".mod", ".sum",
 			".md", ".log", ".yaml",
 			".sample",
+		},
+		Formats: []string{
+			".jpg", ".jpeg", ".heic", ".png",
+			".mp4", ".mov",
 		},
 	}
 

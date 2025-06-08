@@ -12,6 +12,15 @@ workers: 4
 # 是否為乾跑模式（只顯示將要移動的檔案，不實際執行）
 dry_run: false
 
+# 支援的檔案格式
+formats:
+  - ".jpg"
+  - ".jpeg"
+  - ".heic"
+  - ".png"
+  - ".mp4"
+  - ".mov" 
+  
 # 要忽略的檔案類型
 ignore:
   - ".git"
@@ -22,4 +31,4 @@ ignore:
   - ".md"
   - ".log"
   - ".yaml"
-  - ".sample" 
+  - ".sample"

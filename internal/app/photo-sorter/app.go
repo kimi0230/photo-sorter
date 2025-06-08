@@ -105,14 +105,13 @@ func (a *App) Run(ctx context.Context) error {
 				return nil
 			}
 
-			ext := filepath.Ext(path)
-			switch ext {
-			case ".jpg", ".jpeg", ".heic", ".png", ".mp4", ".mov":
+			// 檢查是否為支援的格式
+			if a.config.IsSupportedFormat(path) {
 				files = append(files, path)
 				a.stats.totalFiles++
-			default:
+			} else {
 				unsupportedFiles = append(unsupportedFiles, path)
-				a.stats.unsupportedExts[ext]++
+				a.stats.unsupportedExts[filepath.Ext(path)]++
 				a.stats.totalFiles++
 			}
 		}
