@@ -24,43 +24,40 @@ type Config struct {
 	GeocoderType geocoding.GeocoderType `yaml:"geocoder_type"`  // 地理編碼器類型
 }
 
-func LoadConfig() (*Config, error) {
-	// 預設設定
-	config := &Config{
-		SrcDir:       ".",
-		DstDir:       "sorted_media",
-		Workers:      4,
-		DryRun:       false,
-		DateFormat:   "2006-01-02",                                  // 預設使用完整日期
-		EnableGeoTag: true,                                          // 預設啟用地理位置標籤
-		GeoJSONPath:  "./internal/pkg/geocoding/countries.geo.json", // 預設 GeoJSON 路徑
-		GeocoderType: geocoding.GeoAlpha3JSONType,                   // 預設使用 GeoAlpha3JSON 地理編碼器
-		Ignore: []string{
-			".git", ".gitignore",
-			".go", ".mod", ".sum",
-			".md", ".log", ".yaml",
-			".sample",
-		},
-		Formats: []string{
-			".jpg", ".jpeg", ".heic", ".png",
-			".mp4", ".mov",
-		},
+func LoadConfig(configPath string) (*Config, error) {
+	// 讀取設定檔
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("讀取設定檔失敗: %v", err)
 	}
 
-	// 嘗試讀取設定檔
-	configPath := "config.yaml"
-	if _, err := os.Stat(configPath); err == nil {
-		data, err := os.ReadFile(configPath)
-		if err != nil {
-			return nil, fmt.Errorf("讀取設定檔失敗: %v", err)
-		}
-
-		if err := yaml.Unmarshal(data, config); err != nil {
-			return nil, fmt.Errorf("解析設定檔失敗: %v", err)
-		}
+	// 解析 YAML
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("解析設定檔失敗: %v", err)
 	}
 
-	return config, nil
+	// 設定預設值
+	if cfg.Workers == 0 {
+		cfg.Workers = 4
+	}
+	if cfg.DryRun {
+		cfg.DryRun = true
+	}
+	if cfg.DateFormat == "" {
+		cfg.DateFormat = "2006-01-02"
+	}
+	if cfg.EnableGeoTag {
+		cfg.EnableGeoTag = true
+	}
+	if cfg.GeoJSONPath == "" {
+		cfg.GeoJSONPath = "./internal/pkg/geocoding/countries.geo.json"
+	}
+	if cfg.GeocoderType == "" {
+		cfg.GeocoderType = geocoding.GeoAlpha3JSONType
+	}
+
+	return &cfg, nil
 }
 
 func (c *Config) ApplyFlags(srcDir, dstDir string, workers int, dryRun bool) {
@@ -109,34 +106,4 @@ func (c *Config) IsSupportedFormat(path string) bool {
 		}
 	}
 	return false
-}
-
-func CreateDefaultConfig() error {
-	config := &Config{
-		SrcDir:       ".",
-		DstDir:       "sorted_media",
-		Workers:      4,
-		DryRun:       false,
-		DateFormat:   "2006-01-02",
-		EnableGeoTag: true,
-		GeoJSONPath:  "./internal/pkg/geocoding/countries.geo.json",
-		GeocoderType: geocoding.GeoAlpha3JSONType,
-		Ignore: []string{
-			".git", ".gitignore",
-			".go", ".mod", ".sum",
-			".md", ".log", ".yaml",
-			".sample",
-		},
-		Formats: []string{
-			".jpg", ".jpeg", ".heic", ".png",
-			".mp4", ".mov",
-		},
-	}
-
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("產生預設設定檔失敗: %v", err)
-	}
-
-	return os.WriteFile("config.yaml", data, 0644)
 }

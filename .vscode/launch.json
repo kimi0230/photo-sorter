@@ -9,11 +9,13 @@
             "program": "${workspaceFolder}/cmd/photo-sorter",
             "args": [
                 "-src",
-                "test_source",
+                "${workspaceFolder}/source_media",
                 "-dst",
-                "sorted_media",
+                "${workspaceFolder}/sorted_media",
                 "-workers",
                 "4",
+                "-c",
+                "${workspaceFolder}/config/config.yaml"
                 // "-dry-run"
             ],
             "cwd": "${workspaceFolder}"

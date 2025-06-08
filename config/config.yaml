@@ -1,7 +1,7 @@
 # 照片分類工具設定檔
 
 # 原始照片資料夾路徑
-src_dir: "test_source"
+src_dir: "source_media"
 
 # 整理後儲存的位置
 dst_dir: "sorted_media"

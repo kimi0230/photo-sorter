@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	srcDir  string
-	dstDir  string
-	workers int
-	dryRun  bool
+	srcDir     string
+	dstDir     string
+	workers    int
+	dryRun     bool
+	configPath string
 )
 
 func init() {
@@ -25,13 +26,15 @@ func init() {
 	flag.StringVar(&dstDir, "dst", ".", "整理後儲存的位置")
 	flag.IntVar(&workers, "workers", 4, "最大併發數")
 	flag.BoolVar(&dryRun, "dry-run", false, "僅顯示將搬移的路徑，不實際執行")
+	flag.StringVar(&configPath, "c", "config/config.yaml", "配置檔案路徑")
 }
 
 func main() {
+	// 解析命令列參數
 	flag.Parse()
 
-	// 載入設定檔
-	cfg, err := config.LoadConfig()
+	// 載入配置
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("載入設定檔失敗: %v", err)
 	}
@@ -55,7 +58,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		fmt.Println("\n正在優雅關閉...")
+		fmt.Println("\n收到關閉信號，正在優雅關閉...")
 		cancel()
 	}()
 

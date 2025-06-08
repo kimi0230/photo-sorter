@@ -16,7 +16,7 @@ clean:
 
 # 執行應用程式
 run: build
-	./$(BINARY_NAME) -config config/config.yaml
+	./$(BINARY_NAME) -c config/config.yaml
 
 # 建置 Docker 映像
 docker-build:
@@ -24,4 +24,4 @@ docker-build:
 
 # 執行 Docker 容器
 docker-run:
-	docker run -v $(PWD):/app $(DOCKER_IMAGE) -config config/config.yaml
+	docker run -v $(PWD):/app $(DOCKER_IMAGE) -c config/config.yaml
