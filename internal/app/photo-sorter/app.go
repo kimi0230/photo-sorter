@@ -59,7 +59,7 @@ func (a *App) ProcessFile(path string) error {
 	}
 
 	// 取得目標路徑
-	targetPath, err := exif.GetTargetPath(path, exifData, a.config.DstDir)
+	targetPath, err := exif.GetTargetPath(path, exifData, a.config)
 	if err != nil {
 		a.logger.LogError(path, fmt.Sprintf("取得目標路徑失敗: %v", err))
 		return err

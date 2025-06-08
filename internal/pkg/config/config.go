@@ -10,21 +10,23 @@ import (
 )
 
 type Config struct {
-	SrcDir  string   `yaml:"src_dir"`
-	DstDir  string   `yaml:"dst_dir"`
-	Workers int      `yaml:"workers"`
-	DryRun  bool     `yaml:"dry_run"`
-	Ignore  []string `yaml:"ignore"`  // 要忽略的檔案類型
-	Formats []string `yaml:"formats"` // 支援的檔案格式
+	SrcDir     string   `yaml:"src_dir"`
+	DstDir     string   `yaml:"dst_dir"`
+	Workers    int      `yaml:"workers"`
+	DryRun     bool     `yaml:"dry_run"`
+	Ignore     []string `yaml:"ignore"`      // 要忽略的檔案類型
+	Formats    []string `yaml:"formats"`     // 支援的檔案格式
+	DateFormat string   `yaml:"date_format"` // 日期格式：YYYY-MM-DD 或 YYYY-MM
 }
 
 func LoadConfig() (*Config, error) {
 	// 預設設定
 	config := &Config{
-		SrcDir:  ".",
-		DstDir:  "sorted_media",
-		Workers: 4,
-		DryRun:  false,
+		SrcDir:     ".",
+		DstDir:     "sorted_media",
+		Workers:    4,
+		DryRun:     false,
+		DateFormat: "2006-01-02", // 預設使用完整日期
 		Ignore: []string{
 			".git", ".gitignore",
 			".go", ".mod", ".sum",

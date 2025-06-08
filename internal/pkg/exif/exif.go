@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"photo-sorter/internal/pkg/config"
 )
 
 type ExifData struct {
@@ -35,7 +37,7 @@ func GetExifData(path string) (*ExifData, error) {
 	return &data[0], nil
 }
 
-func GetTargetPath(path string, exif *ExifData, dstDir string) (string, error) {
+func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, error) {
 	// 取得日期
 	date := exif.CreateDate
 	if date == "" {
@@ -44,12 +46,12 @@ func GetTargetPath(path string, exif *ExifData, dstDir string) (string, error) {
 	if date == "" {
 		date = "unknown_date"
 	} else {
-		// 解析日期字串並格式化
+		// 解析日期字串並使用設定檔中的格式
 		t, err := time.Parse("2006:01:02 15:04:05", date)
 		if err != nil {
 			return "", fmt.Errorf("解析日期失敗: %v", err)
 		}
-		date = t.Format("2006-01-02")
+		date = t.Format(cfg.DateFormat)
 	}
 
 	// 取得裝置名稱
@@ -68,7 +70,7 @@ func GetTargetPath(path string, exif *ExifData, dstDir string) (string, error) {
 	}
 
 	// 建立目標路徑
-	targetDir := filepath.Join(dstDir, date, device)
+	targetDir := filepath.Join(cfg.DstDir, date, device)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return "", fmt.Errorf("建立目標資料夾失敗: %v", err)
 	}

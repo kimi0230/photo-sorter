@@ -2,14 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "啟動 photo-sorter",
+            "name": "run photo-sorter",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/photo-sorter",
             "args": [
                 "-src",
-                ".",
+                "./202402",
                 "-dst",
                 "./sorted_media",
                 "-workers",

@@ -12,6 +12,9 @@ workers: 4
 # 是否為乾跑模式（只顯示將要移動的檔案，不實際執行）
 dry_run: false
 
+# 日期格式：YYYY-MM-DD (2006-01-02) 或 YYYY-MM (2006-01)
+date_format: "2006-01"
+
 # 支援的檔案格式
 formats:
   - ".jpg"
