@@ -45,7 +45,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		cfg.DryRun = true
 	}
 	if cfg.DateFormat == "" {
-		cfg.DateFormat = "2006-01-02"
+		cfg.DateFormat = "2006-01"
 	}
 	if cfg.EnableGeoTag {
 		cfg.EnableGeoTag = true
