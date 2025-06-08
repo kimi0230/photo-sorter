@@ -11,6 +11,8 @@ import (
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/exif"
 	"photo-sorter/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 type App struct {
@@ -93,11 +95,12 @@ func (a *App) copyFile(src, dst string) error {
 
 func (a *App) Run(ctx context.Context) error {
 	// 建立工作通道
-	jobs := make(chan string, 100) // 使用固定大小的緩衝通道
+	jobs := make(chan string, 100)
 	results := make(chan error, 100)
 
 	// 啟動工作池
 	fmt.Printf("啟動工作池，併發數: %d\n", a.config.Workers)
+	a.logger.LogInfo("啟動工作池", zap.Int("workers", a.config.Workers))
 	var wg sync.WaitGroup
 	for i := 0; i < a.config.Workers; i++ {
 		wg.Add(1)
@@ -164,6 +167,7 @@ func (a *App) Run(ctx context.Context) error {
 
 					if a.config.DryRun {
 						fmt.Printf("將移動不支援的檔案: %s -> %s\n", path, targetPath)
+						a.logger.LogError(path, fmt.Sprintf("將移動不支援的檔案: %s -> %s", path, targetPath))
 						return nil
 					}
 
