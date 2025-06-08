@@ -102,6 +102,9 @@ func (a *App) copyFile(src, dst string) error {
 }
 
 func (a *App) Run(ctx context.Context) error {
+	if err := a.printDirectoryStats(a.config.SrcDir); err != nil {
+		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
+	}
 	// 記錄開始時間
 	startTime := time.Now()
 
@@ -225,7 +228,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	// 統計每個資料夾的檔案數量
-	if err := a.printDirectoryStats(); err != nil {
+	if err := a.printDirectoryStats(a.config.DstDir); err != nil {
 		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
 	}
 
@@ -263,9 +266,9 @@ func (a *App) printDirStatsRecursive(dir *dirStats, level int) {
 	// 輸出當前目錄資訊
 	indent := strings.Repeat("  ", level)
 	dirName := filepath.Base(dir.path)
-	if dirName == "." {
-		dirName = "sorted_media"
-	}
+	// if dirName == "." {
+	// 	dirName = "sorted_media"
+	// }
 	a.logger.LogInfo(fmt.Sprintf("%s%s/ (%d 個檔案)", indent, dirName, totalFiles))
 
 	// 遞迴輸出子目錄
@@ -274,24 +277,24 @@ func (a *App) printDirStatsRecursive(dir *dirStats, level int) {
 	}
 }
 
-func (a *App) printDirectoryStats() error {
+func (a *App) printDirectoryStats(dir string) error {
 	root := &dirStats{
-		path:    a.config.DstDir,
+		path:    dir,
 		subDirs: make(map[string]*dirStats),
 	}
 
-	err := filepath.Walk(a.config.DstDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		// 跳過根目錄
-		if path == a.config.DstDir {
+		if path == dir {
 			return nil
 		}
 
 		// 取得相對路徑
-		relPath, err := filepath.Rel(a.config.DstDir, path)
+		relPath, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
 		}
@@ -326,7 +329,7 @@ func (a *App) printDirectoryStats() error {
 	}
 
 	// 輸出統計資訊
-	a.logger.LogInfo("sorted_media 資料夾統計資訊")
+	a.logger.LogInfo("資料夾統計資訊")
 	a.printDirStatsRecursive(root, 0)
 
 	// 計算實際的總檔案數

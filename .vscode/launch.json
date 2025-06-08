@@ -9,9 +9,9 @@
             "program": "${workspaceFolder}/cmd/photo-sorter",
             "args": [
                 "-src",
-                "./test_source",
+                "test_source",
                 "-dst",
-                "./sorted_media",
+                "sorted_media",
                 "-workers",
                 "4",
                 // "-dry-run"
