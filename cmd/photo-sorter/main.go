@@ -28,7 +28,7 @@ func init() {
 	flag.StringVar(&dstDir, "dst", ".", "整理後儲存的位置")
 	flag.IntVar(&workers, "workers", 4, "最大併發數")
 	flag.BoolVar(&dryRun, "dry-run", false, "僅顯示將搬移的路徑，不實際執行")
-	flag.StringVar(&configPath, "c", "config/config.yaml", "配置檔案路徑")
+	flag.StringVar(&configPath, "c", "config.yaml", "配置檔案路徑")
 	flag.BoolVar(&showVer, "version", false, "顯示版本資訊")
 }
 
