@@ -32,10 +32,10 @@ jobs:
         run: |
           # 使用 yq 來讀取 YAML 檔案中的版本號
           if command -v yq &> /dev/null; then
-            VERSION=$(yq eval '.version' config/config.yaml)
+            VERSION=$(yq eval '.version' config.yaml)
           else
             # 如果沒有 yq，使用 grep 和 sed 來提取版本號
-            VERSION=$(grep '^version:' config/config.yaml | sed 's/version: *//')
+            VERSION=$(grep '^version:' config.yaml | sed 's/version: *//')
           fi
           
           # 如果版本號為空，使用 git describe
@@ -68,7 +68,7 @@ jobs:
           cp $BINARY_NAME $RELEASE_DIR/photo-sorter
           
           # 複製配置檔案
-          cp config/config.yaml $RELEASE_DIR/config/config.yaml
+          cp config.yaml $RELEASE_DIR/config.yaml
           
           # 建立壓縮檔
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then

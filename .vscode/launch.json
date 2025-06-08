@@ -15,7 +15,7 @@
                 "-workers",
                 "4",
                 "-c",
-                "${workspaceFolder}/config/config.yaml"
+                "${workspaceFolder}/config.yaml"
                 // "-dry-run"
             ],
             "cwd": "${workspaceFolder}"

@@ -4,7 +4,7 @@
 BINARY_NAME=photo-sorter
 DOCKER_IMAGE=photo-sorter
 MAIN_PATH=cmd/photo-sorter/main.go
-CONFIG_PATH=config/config.yaml
+CONFIG_PATH=config.yaml
 
 # 從配置檔案讀取版本號（移除註解和引號）
 VERSION = $(shell grep '^version:' $(CONFIG_PATH) | sed 's/version: *//' | sed 's/"//g' | sed 's/\#.*$$//' | xargs)

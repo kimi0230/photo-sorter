@@ -37,7 +37,7 @@ docker build -t photo-sorter .
 ### 基本使用
 
 ```bash
-./photo-sorter -config config/config.yaml
+./photo-sorter -config config.yaml
 ```
 
 ### 配置檔案說明
@@ -72,7 +72,7 @@ ignore_files:                     # 忽略的檔案
 ### 使用 Docker
 
 ```bash
-docker run -v /path/to/photos:/app/input -v /path/to/output:/app/output photo-sorter -config config/config.yaml
+docker run -v /path/to/photos:/app/input -v /path/to/output:/app/output photo-sorter -config config.yaml
 ```
 
 ## 輸出結構

@@ -40,6 +40,7 @@ jobs:
           GOARCH: ${{ matrix.arch }}
         run: |
           BINARY_NAME="photo-sorter-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}"
+          cp config.yaml config.yaml
           go build -ldflags "-X photo-sorter/internal/pkg/version.Version=${{ env.VERSION }} \
             -X photo-sorter/internal/pkg/version.BuildTime=$(date +%Y-%m-%d_%H:%M:%S) \
             -X photo-sorter/internal/pkg/version.GitCommit=$(git rev-parse HEAD)" \
@@ -56,7 +57,7 @@ jobs:
           cp $BINARY_NAME $RELEASE_DIR/photo-sorter
           
           # 複製配置檔案
-          cp config/config.yaml $RELEASE_DIR/config/config.yaml
+          cp config.yaml $RELEASE_DIR/config.yaml
           
           # 建立壓縮檔
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
