@@ -15,6 +15,15 @@ dry_run: false
 # 日期格式：YYYY-MM-DD (2006-01-02) 或 YYYY-MM (2006-01)
 date_format: "2006-01"
 
+# 是否啟用地理位置標籤
+enable_geo_tag: true
+
+# GeoJSON 檔案路徑
+geo_json_path: "./internal/pkg/geocoding/countries.geo.json"
+
+# 地理編碼器類型
+geocoder_type: "geo_alpha3_json"
+
 # 支援的檔案格式
 formats:
   - ".jpg"

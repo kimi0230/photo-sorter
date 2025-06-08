@@ -239,6 +239,32 @@ func (a *App) worker(ctx context.Context, id int, jobs <-chan string, results ch
 	}
 }
 
+func (a *App) calculateTotalFiles(dir *dirStats) int {
+	total := dir.fileCount
+	for _, subDir := range dir.subDirs {
+		total += a.calculateTotalFiles(subDir)
+	}
+	return total
+}
+
+func (a *App) printDirStatsRecursive(dir *dirStats, level int) {
+	// 計算總檔案數（包含子目錄）
+	totalFiles := a.calculateTotalFiles(dir)
+
+	// 輸出當前目錄資訊
+	indent := strings.Repeat("  ", level)
+	dirName := filepath.Base(dir.path)
+	if dirName == "." {
+		dirName = "sorted_media"
+	}
+	a.logger.LogInfo(fmt.Sprintf("%s%s/ (%d 個檔案)", indent, dirName, totalFiles))
+
+	// 遞迴輸出子目錄
+	for _, subDir := range dir.subDirs {
+		a.printDirStatsRecursive(subDir, level+1)
+	}
+}
+
 func (a *App) printDirectoryStats() error {
 	root := &dirStats{
 		path:    a.config.DstDir,
@@ -294,26 +320,9 @@ func (a *App) printDirectoryStats() error {
 	a.logger.LogInfo("sorted_media 資料夾統計資訊")
 	a.printDirStatsRecursive(root, 0)
 
+	// 計算實際的總檔案數
+	actualTotal := a.calculateTotalFiles(root)
+	a.logger.LogInfo(fmt.Sprintf("總計：%d 個檔案", actualTotal))
+
 	return nil
-}
-
-func (a *App) printDirStatsRecursive(dir *dirStats, level int) {
-	// 計算總檔案數（包含子目錄）
-	totalFiles := dir.fileCount
-	for _, subDir := range dir.subDirs {
-		totalFiles += subDir.fileCount
-	}
-
-	// 輸出當前目錄資訊
-	indent := strings.Repeat("  ", level)
-	dirName := filepath.Base(dir.path)
-	if dirName == "." {
-		dirName = "sorted_media"
-	}
-	a.logger.LogInfo(fmt.Sprintf("%s%s/ (%d 個檔案)", indent, dirName, totalFiles))
-
-	// 遞迴輸出子目錄
-	for _, subDir := range dir.subDirs {
-		a.printDirStatsRecursive(subDir, level+1)
-	}
 }

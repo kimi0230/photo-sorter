@@ -6,27 +6,35 @@ import (
 	"path/filepath"
 	"strings"
 
+	"photo-sorter/internal/pkg/geocoding"
+
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	SrcDir     string   `yaml:"src_dir"`
-	DstDir     string   `yaml:"dst_dir"`
-	Workers    int      `yaml:"workers"`
-	DryRun     bool     `yaml:"dry_run"`
-	Ignore     []string `yaml:"ignore"`      // 要忽略的檔案類型
-	Formats    []string `yaml:"formats"`     // 支援的檔案格式
-	DateFormat string   `yaml:"date_format"` // 日期格式：YYYY-MM-DD 或 YYYY-MM
+	SrcDir       string                 `yaml:"src_dir"`
+	DstDir       string                 `yaml:"dst_dir"`
+	Workers      int                    `yaml:"workers"`
+	DryRun       bool                   `yaml:"dry_run"`
+	Ignore       []string               `yaml:"ignore"`         // 要忽略的檔案類型
+	Formats      []string               `yaml:"formats"`        // 支援的檔案格式
+	DateFormat   string                 `yaml:"date_format"`    // 日期格式：YYYY-MM-DD 或 YYYY-MM
+	EnableGeoTag bool                   `yaml:"enable_geo_tag"` // 是否啟用地理位置標籤
+	GeoJSONPath  string                 `yaml:"geo_json_path"`  // GeoJSON 檔案路徑
+	GeocoderType geocoding.GeocoderType `yaml:"geocoder_type"`  // 地理編碼器類型
 }
 
 func LoadConfig() (*Config, error) {
 	// 預設設定
 	config := &Config{
-		SrcDir:     ".",
-		DstDir:     "sorted_media",
-		Workers:    4,
-		DryRun:     false,
-		DateFormat: "2006-01-02", // 預設使用完整日期
+		SrcDir:       ".",
+		DstDir:       "sorted_media",
+		Workers:      4,
+		DryRun:       false,
+		DateFormat:   "2006-01-02",                                  // 預設使用完整日期
+		EnableGeoTag: true,                                          // 預設啟用地理位置標籤
+		GeoJSONPath:  "./internal/pkg/geocoding/countries.geo.json", // 預設 GeoJSON 路徑
+		GeocoderType: geocoding.GeoAlpha3JSONType,                   // 預設使用 GeoAlpha3JSON 地理編碼器
 		Ignore: []string{
 			".git", ".gitignore",
 			".go", ".mod", ".sum",
@@ -105,10 +113,14 @@ func (c *Config) IsSupportedFormat(path string) bool {
 
 func CreateDefaultConfig() error {
 	config := &Config{
-		SrcDir:  ".",
-		DstDir:  "sorted_media",
-		Workers: 4,
-		DryRun:  false,
+		SrcDir:       ".",
+		DstDir:       "sorted_media",
+		Workers:      4,
+		DryRun:       false,
+		DateFormat:   "2006-01-02",
+		EnableGeoTag: true,
+		GeoJSONPath:  "./internal/pkg/geocoding/countries.geo.json",
+		GeocoderType: geocoding.GeoAlpha3JSONType,
 		Ignore: []string{
 			".git", ".gitignore",
 			".go", ".mod", ".sum",

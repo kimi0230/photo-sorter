@@ -6,20 +6,73 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"photo-sorter/internal/pkg/config"
+	"photo-sorter/internal/pkg/geocoding"
 )
 
 type ExifData struct {
 	CreateDate      string `json:"CreateDate"`
 	MediaCreateDate string `json:"MediaCreateDate"`
 	Model           string `json:"Model"`
+	GPSLatitude     string `json:"GPSLatitude"`
+	GPSLongitude    string `json:"GPSLongitude"`
+}
+
+// parseGPSString 將 GPS 字串轉換為浮點數
+// 格式範例: "22 deg 41' 58.80\" N"
+func parseGPSString(gpsStr string) (float64, error) {
+	if gpsStr == "" {
+		return 0, nil
+	}
+
+	// 移除引號和空格
+	gpsStr = strings.Trim(gpsStr, "\"")
+	gpsStr = strings.TrimSpace(gpsStr)
+
+	// 分割字串
+	parts := strings.Fields(gpsStr)
+	if len(parts) < 4 {
+		return 0, fmt.Errorf("無效的 GPS 格式: %s", gpsStr)
+	}
+
+	// 解析度數
+	degrees, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return 0, fmt.Errorf("解析度數失敗: %v", err)
+	}
+
+	// 解析分數
+	minutes, err := strconv.ParseFloat(strings.TrimSuffix(parts[2], "'"), 64)
+	if err != nil {
+		return 0, fmt.Errorf("解析分數失敗: %v", err)
+	}
+
+	// 解析秒數
+	seconds, err := strconv.ParseFloat(strings.TrimSuffix(parts[3], "\""), 64)
+	if err != nil {
+		return 0, fmt.Errorf("解析秒數失敗: %v", err)
+	}
+
+	// 計算十進位度數
+	decimal := degrees + minutes/60 + seconds/3600
+
+	// 檢查方向（N/S 或 E/W）
+	if len(parts) > 4 {
+		direction := parts[4]
+		if direction == "S" || direction == "W" {
+			decimal = -decimal
+		}
+	}
+
+	return decimal, nil
 }
 
 func GetExifData(path string) (*ExifData, error) {
-	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-Model", path)
+	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-Model", "-GPSLatitude", "-GPSLongitude", path)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("執行 exiftool 失敗: %v", err)
@@ -52,6 +105,31 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 			return "", fmt.Errorf("解析日期失敗: %v", err)
 		}
 		date = t.Format(cfg.DateFormat)
+	}
+
+	// 如果有啟用地理位置標籤且有 GPS 資訊，則加入地理位置
+	if cfg.EnableGeoTag && exif.GPSLatitude != "" && exif.GPSLongitude != "" {
+		lat, err := parseGPSString(exif.GPSLatitude)
+		if err != nil {
+			return "", fmt.Errorf("解析緯度失敗: %v", err)
+		}
+
+		lon, err := parseGPSString(exif.GPSLongitude)
+		if err != nil {
+			return "", fmt.Errorf("解析經度失敗: %v", err)
+		}
+
+		if lat != 0 && lon != 0 {
+			geocoder, err := geocoding.NewGeocoder(cfg.GeocoderType, map[string]interface{}{
+				"json_path": cfg.GeoJSONPath,
+			})
+			if err == nil {
+				location, err := geocoder.GetLocationFromGPS(lat, lon)
+				if err == nil && location != "" {
+					date = fmt.Sprintf("%s-%s", date, location)
+				}
+			}
+		}
 	}
 
 	// 取得裝置名稱
