@@ -92,43 +92,9 @@ func (a *App) copyFile(src, dst string) error {
 }
 
 func (a *App) Run(ctx context.Context) error {
-	// 先收集所有需要處理的檔案
-	var files []string
-	var unsupportedFiles []string
-	err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			// 檢查是否要忽略此檔案
-			if a.config.ShouldIgnore(path) {
-				return nil
-			}
-
-			// 檢查是否為支援的格式
-			if a.config.IsSupportedFormat(path) {
-				files = append(files, path)
-				a.stats.totalFiles++
-			} else {
-				unsupportedFiles = append(unsupportedFiles, path)
-				a.stats.unsupportedExts[filepath.Ext(path)]++
-				a.stats.totalFiles++
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("掃描檔案時發生錯誤: %v", err)
-	}
-
-	fmt.Printf("找到 %d 個檔案需要處理\n", len(files))
-	if len(unsupportedFiles) > 0 {
-		fmt.Printf("其中 %d 個檔案為不支援的格式\n", len(unsupportedFiles))
-	}
-
 	// 建立工作通道
-	jobs := make(chan string, len(files))
-	results := make(chan error, len(files))
+	jobs := make(chan string, 100) // 使用固定大小的緩衝通道
+	results := make(chan error, 100)
 
 	// 啟動工作池
 	fmt.Printf("啟動工作池，併發數: %d\n", a.config.Workers)
@@ -138,20 +104,7 @@ func (a *App) Run(ctx context.Context) error {
 		go a.worker(ctx, i, jobs, results, &wg)
 	}
 
-	// 發送工作
-	go func() {
-		defer close(jobs)
-		// 先處理支援的檔案
-		for _, file := range files {
-			select {
-			case <-ctx.Done():
-				return
-			case jobs <- file:
-			}
-		}
-	}()
-
-	// 處理結果
+	// 使用 goroutine 處理結果
 	go func() {
 		for err := range results {
 			if err != nil {
@@ -162,47 +115,76 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 
+	// 使用 goroutine 掃描檔案並發送工作
+	go func() {
+		defer close(jobs)
+		err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {
+				// 檢查是否要忽略此檔案
+				if a.config.ShouldIgnore(path) {
+					return nil
+				}
+
+				// 檢查是否為支援的格式
+				if a.config.IsSupportedFormat(path) {
+					a.stats.totalFiles++
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case jobs <- path:
+					}
+				} else {
+					// 處理不支援的檔案
+					a.stats.totalFiles++
+					a.stats.unsupportedExts[filepath.Ext(path)]++
+
+					// 建立 unknown_format 資料夾
+					unknownDir := filepath.Join(a.config.DstDir, "unknown_format")
+					if err := os.MkdirAll(unknownDir, 0755); err != nil {
+						a.logger.LogError(path, fmt.Sprintf("建立 unknown_format 資料夾失敗: %v", err))
+						return err
+					}
+
+					// 處理檔案名稱衝突
+					baseName := filepath.Base(path)
+					targetPath := filepath.Join(unknownDir, baseName)
+					counter := 1
+					ext := filepath.Ext(baseName)
+					nameWithoutExt := strings.TrimSuffix(baseName, ext)
+					for {
+						if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+							break
+						}
+						targetPath = filepath.Join(unknownDir, fmt.Sprintf("%s_%d%s", nameWithoutExt, counter, ext))
+						counter++
+					}
+
+					if a.config.DryRun {
+						fmt.Printf("將移動不支援的檔案: %s -> %s\n", path, targetPath)
+						return nil
+					}
+
+					if err := a.copyFile(path, targetPath); err != nil {
+						a.logger.LogError(path, fmt.Sprintf("複製不支援的檔案失敗: %v", err))
+						a.stats.failureCount++
+					} else {
+						a.stats.successCount++
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			fmt.Printf("掃描檔案時發生錯誤: %v\n", err)
+		}
+	}()
+
 	// 等待所有工作完成
 	wg.Wait()
 	close(results)
-
-	// 處理不支援的檔案
-	if len(unsupportedFiles) > 0 {
-		fmt.Printf("\n開始處理不支援的檔案格式...\n")
-		unknownDir := filepath.Join(a.config.DstDir, "unknown_format")
-		if err := os.MkdirAll(unknownDir, 0755); err != nil {
-			return fmt.Errorf("建立 unknown_format 資料夾失敗: %v", err)
-		}
-
-		for _, file := range unsupportedFiles {
-			baseName := filepath.Base(file)
-			targetPath := filepath.Join(unknownDir, baseName)
-
-			// 處理檔案名稱衝突
-			counter := 1
-			ext := filepath.Ext(baseName)
-			nameWithoutExt := strings.TrimSuffix(baseName, ext)
-			for {
-				if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-					break
-				}
-				targetPath = filepath.Join(unknownDir, fmt.Sprintf("%s_%d%s", nameWithoutExt, counter, ext))
-				counter++
-			}
-
-			if a.config.DryRun {
-				fmt.Printf("將移動不支援的檔案: %s -> %s\n", file, targetPath)
-				continue
-			}
-
-			if err := a.copyFile(file, targetPath); err != nil {
-				a.logger.LogError(file, fmt.Sprintf("複製不支援的檔案失敗: %v", err))
-				a.stats.failureCount++
-			} else {
-				a.stats.successCount++
-			}
-		}
-	}
 
 	// 輸出統計資訊
 	fmt.Printf("\n處理完成:\n")
