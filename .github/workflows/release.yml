@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'  # 當推送 v 開頭的標籤時觸發
 
+# 添加權限設定
+permissions:
+  contents: write  # 允許寫入內容（建立 Release）
+
 jobs:
   build:
     strategy:
