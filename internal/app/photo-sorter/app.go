@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/exif"
@@ -101,6 +102,9 @@ func (a *App) copyFile(src, dst string) error {
 }
 
 func (a *App) Run(ctx context.Context) error {
+	// 記錄開始時間
+	startTime := time.Now()
+
 	// 建立工作通道
 	jobs := make(chan string, 100)
 	results := make(chan error, 100)
@@ -197,16 +201,21 @@ func (a *App) Run(ctx context.Context) error {
 	wg.Wait()
 	close(results)
 
+	// 計算處理時間
+	duration := time.Since(startTime)
+
 	// 輸出統計資訊
 	a.logger.LogInfo("處理完成",
 		zap.Int("total_files", a.stats.totalFiles),
 		zap.Int("success_count", a.stats.successCount),
 		zap.Int("failure_count", a.stats.failureCount),
+		zap.Duration("duration", duration),
 	)
 	fmt.Printf("\n處理完成:\n")
 	fmt.Printf("總檔案數: %d\n", a.stats.totalFiles)
 	fmt.Printf("成功處理: %d\n", a.stats.successCount)
 	fmt.Printf("處理失敗: %d\n", a.stats.failureCount)
+	fmt.Printf("處理時間: %v\n", duration)
 
 	// 輸出不支援的檔案格式統計
 	if len(a.stats.unsupportedExts) > 0 {
