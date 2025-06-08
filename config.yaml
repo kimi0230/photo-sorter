@@ -10,4 +10,16 @@ dst_dir: "."
 workers: 4
 
 # 是否為乾跑模式（只顯示將要移動的檔案，不實際執行）
-dry_run: false 
+dry_run: false
+
+# 要忽略的檔案類型
+ignore:
+  - ".git"
+  - ".gitignore"
+  - ".go"
+  - ".mod"
+  - ".sum"
+  - ".md"
+  - ".log"
+  - ".yaml"
+  - ".sample" 

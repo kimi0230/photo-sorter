@@ -100,6 +100,11 @@ func (a *App) Run(ctx context.Context) error {
 			return err
 		}
 		if !info.IsDir() {
+			// 檢查是否要忽略此檔案
+			if a.config.ShouldIgnore(path) {
+				return nil
+			}
+
 			ext := filepath.Ext(path)
 			switch ext {
 			case ".jpg", ".jpeg", ".heic", ".png", ".mp4", ".mov":
