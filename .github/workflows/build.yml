@@ -2,8 +2,8 @@ name: Build
 
 on:
   push:
-    tags:
-      - 'v*'  # 當推送 v 開頭的標籤時觸發
+    branches:
+      - main  # 當 main 分支有推送時觸發
   workflow_dispatch:  # 允許手動觸發
 
 jobs:
@@ -58,8 +58,29 @@ jobs:
             -o $BINARY_NAME cmd/photo-sorter/main.go
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
 
+      - name: Create release package
+        run: |
+          # 建立發布目錄
+          RELEASE_DIR="photo-sorter-${{ env.VERSION }}-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}"
+          mkdir -p $RELEASE_DIR
+          
+          # 複製二進制檔案
+          cp $BINARY_NAME $RELEASE_DIR/photo-sorter
+          
+          # 複製配置檔案
+          cp config/config.yaml $RELEASE_DIR/
+          
+          # 建立壓縮檔
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            tar czf $RELEASE_DIR.tar.gz $RELEASE_DIR
+          else
+            zip -r $RELEASE_DIR.zip $RELEASE_DIR
+          fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: photo-sorter-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}
-          path: photo-sorter-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }} 
+          path: |
+            photo-sorter-${{ env.VERSION }}-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}.tar.gz
+            photo-sorter-${{ env.VERSION }}-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}.zip 
