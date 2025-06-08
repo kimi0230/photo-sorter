@@ -22,7 +22,7 @@ func LoadConfig() (*Config, error) {
 	// 預設設定
 	config := &Config{
 		SrcDir:  ".",
-		DstDir:  ".",
+		DstDir:  "sorted_media",
 		Workers: 4,
 		DryRun:  false,
 		Ignore: []string{
@@ -104,7 +104,7 @@ func (c *Config) IsSupportedFormat(path string) bool {
 func CreateDefaultConfig() error {
 	config := &Config{
 		SrcDir:  ".",
-		DstDir:  ".",
+		DstDir:  "sorted_media",
 		Workers: 4,
 		DryRun:  false,
 		Ignore: []string{

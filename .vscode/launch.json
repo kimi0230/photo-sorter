@@ -11,7 +11,7 @@
                 "-src",
                 ".",
                 "-dst",
-                ".",
+                "./sorted_media",
                 "-workers",
                 "4",
                 // "-dry-run"

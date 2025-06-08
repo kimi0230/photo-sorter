@@ -4,7 +4,7 @@
 src_dir: "."
 
 # 整理後儲存的位置
-dst_dir: "."
+dst_dir: "sorted_media"
 
 # 最大併發處理數量
 workers: 4
