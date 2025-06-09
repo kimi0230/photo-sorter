@@ -32,7 +32,7 @@ func NewGeocoder(geocoderType GeocoderType, options map[string]interface{}) (Geo
 		if !ok {
 			return nil, errors.New("json_path is required for GeoAlpha3JSON type")
 		}
-		return NewGeoState(jsonPath), nil
+		return NewGeoState(jsonPath)
 	default:
 		return nil, errors.New("unsupported geocoder type")
 	}

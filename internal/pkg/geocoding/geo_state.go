@@ -3,6 +3,7 @@ package geocoding
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -13,13 +14,43 @@ type GeoState struct {
 	Name     string `json:"name"`
 	Country  string `json:"country"`
 	jsonPath string
+	// 快取 GeoJSON 資料
+	collection *GeoJSONCollection
 }
 
 // NewGeoState 建立一個新的 GeoState 實例
-func NewGeoState(jsonPath string) *GeoState {
-	return &GeoState{
+func NewGeoState(jsonPath string) (*GeoState, error) {
+	gs := &GeoState{
 		jsonPath: jsonPath,
 	}
+
+	// 初始化時載入資料
+	if err := gs.loadGeoJSON(); err != nil {
+		return nil, fmt.Errorf("載入 GeoJSON 失敗: %w", err)
+	}
+
+	return gs, nil
+}
+
+// loadGeoJSON 載入 GeoJSON 資料
+func (g *GeoState) loadGeoJSON() error {
+	jsonFile, err := os.Open(g.jsonPath)
+	if err != nil {
+		return err
+	}
+	defer jsonFile.Close()
+
+	byteValue, err := io.ReadAll(jsonFile)
+	if err != nil {
+		return err
+	}
+
+	g.collection = &GeoJSONCollection{}
+	if err := json.Unmarshal(byteValue, g.collection); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type GeoJSONFeature struct {
@@ -42,25 +73,12 @@ type GeoJSONCollection struct {
 }
 
 func (g *GeoState) GetLocationFromGPS(lat, lon float64) (*CountryCity, error) {
-	// 讀取 GeoJSON 檔案
-	jsonFile, err := os.Open(g.jsonPath)
-	if err != nil {
-		return nil, err
-	}
-	defer jsonFile.Close()
-
-	byteValue, err := io.ReadAll(jsonFile)
-	if err != nil {
-		return nil, err
-	}
-
-	var collection GeoJSONCollection
-	if err := json.Unmarshal(byteValue, &collection); err != nil {
-		return nil, err
+	if g.collection == nil {
+		return nil, errors.New("GeoJSON 資料未載入")
 	}
 
 	// 檢查每個多邊形是否包含給定的座標
-	for _, feature := range collection.Features {
+	for _, feature := range g.collection.Features {
 		switch feature.Geometry.Type {
 		case "Polygon":
 			var coordinates [][][]float64
