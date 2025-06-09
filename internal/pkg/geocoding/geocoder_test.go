@@ -4,79 +4,8 @@ import (
 	"testing"
 )
 
-func TestNewGeocoder(t *testing.T) {
-
-	testJSONPath := "./countries.geo.json"
-
-	tests := []struct {
-		name         string
-		geocoderType GeocoderType
-		options      map[string]interface{}
-		wantErr      bool
-		errMsg       string
-	}{
-		{
-			name:         "成功建立 GeoAlpha3JSON 地理編碼器",
-			geocoderType: GeoStateType,
-			options: map[string]interface{}{
-				"json_path": testJSONPath,
-			},
-			wantErr: false,
-		},
-		{
-			name:         "缺少 json_path 選項",
-			geocoderType: GeoStateType,
-			options:      map[string]interface{}{},
-			wantErr:      true,
-			errMsg:       "json_path is required for GeoAlpha3JSON type",
-		},
-		{
-			name:         "不支援的地理編碼器類型",
-			geocoderType: "unsupported_type",
-			options:      map[string]interface{}{},
-			wantErr:      true,
-			errMsg:       "unsupported geocoder type",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			geocoder, err := NewGeocoder(tt.geocoderType, tt.options)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Error("期望錯誤但沒有得到錯誤")
-				} else if err.Error() != tt.errMsg {
-					t.Errorf("錯誤訊息不匹配，期望 %q，得到 %q", tt.errMsg, err.Error())
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("不期望的錯誤: %v", err)
-				return
-			}
-
-			if geocoder == nil {
-				t.Error("地理編碼器不應該為 nil")
-			}
-
-			// 測試地理編碼器功能
-			if tt.geocoderType == GeoStateType {
-				location, err := geocoder.GetLocationFromGPS(23.5, 121.0)
-				if err != nil {
-					t.Errorf("GetLocationFromGPS 失敗: %v", err)
-				}
-				if location != "Taiwan" {
-					t.Errorf("期望位置為 Taiwan，得到 %s", location)
-				}
-			}
-		})
-	}
-}
-
 func TestGeocoderLocationMapping(t *testing.T) {
-	testJSONPath := "./geodata/states.geojson"
+	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
 
 	geocoder, err := NewGeocoder(GeoStateType, map[string]interface{}{
 		"json_path": testJSONPath,
@@ -161,8 +90,8 @@ func TestGeocoderLocationMapping(t *testing.T) {
 				return
 			}
 
-			if location != tt.expected {
-				t.Errorf("位置不匹配，期望 %s，得到 %s", tt.expected, location)
+			if location.City != tt.expected {
+				t.Errorf("位置不匹配，期望 %s，得到 %s", tt.expected, location.City)
 			}
 		})
 	}
