@@ -2,3 +2,6 @@ source_media
 sorted_media
 logs
 vsizip
+
+cpu.prof
+mem.prof
