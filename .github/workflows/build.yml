@@ -32,7 +32,7 @@ jobs:
         run: |
           # 使用 yq 來讀取 YAML 檔案中的版本號
           if command -v yq &> /dev/null; then
-            VERSION=$(yq eval '.version' config.yaml)
+            VERSION=$(yq eval '.version' configs/config.yaml)
           else
             # 如果沒有 yq，使用 grep 和 sed 來提取版本號
             VERSION=$(grep '^version:' configs/config.yaml | sed 's/version: *//')
