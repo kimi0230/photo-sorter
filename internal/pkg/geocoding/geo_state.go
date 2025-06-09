@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 )
 
 type GeoState struct {
@@ -40,22 +41,22 @@ type GeoJSONCollection struct {
 	Features []GeoJSONFeature `json:"features"`
 }
 
-func (g *GeoState) GetLocationFromGPS(lat, lon float64) (string, error) {
+func (g *GeoState) GetLocationFromGPS(lat, lon float64) (*CountryCity, error) {
 	// 讀取 GeoJSON 檔案
 	jsonFile, err := os.Open(g.jsonPath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer jsonFile.Close()
 
 	byteValue, err := io.ReadAll(jsonFile)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var collection GeoJSONCollection
 	if err := json.Unmarshal(byteValue, &collection); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 檢查每個多邊形是否包含給定的座標
@@ -68,7 +69,11 @@ func (g *GeoState) GetLocationFromGPS(lat, lon float64) (string, error) {
 			}
 			if len(coordinates) > 0 && len(coordinates[0]) > 0 {
 				if isPointInPolygon(lat, lon, coordinates[0]) {
-					return feature.Properties.Name, nil
+					countryCity := &CountryCity{
+						Country: feature.Properties.Adm0A3,
+						City:    feature.Properties.Name,
+					}
+					return countryCity, nil
 				}
 			}
 		case "MultiPolygon":
@@ -80,14 +85,18 @@ func (g *GeoState) GetLocationFromGPS(lat, lon float64) (string, error) {
 			for _, polygon := range coordinates {
 				if len(polygon) > 0 && len(polygon[0]) > 0 {
 					if isPointInPolygon(lat, lon, polygon[0]) {
-						return feature.Properties.Name, nil
+						countryCity := &CountryCity{
+							Country: feature.Properties.Adm0A3,
+							City:    feature.Properties.Name,
+						}
+						return countryCity, nil
 					}
 				}
 			}
 		}
 	}
 
-	return "", errors.New("location not found")
+	return nil, errors.New("location not found")
 }
 
 // isPointInPolygon 使用射線法判斷點是否在多邊形內
@@ -105,4 +114,9 @@ func isPointInPolygon(lat, lon float64, polygon [][]float64) bool {
 	}
 
 	return inside
+}
+
+// FormatCity 將城市名稱中的空白替換為底線
+func (c *CountryCity) FormatCity() string {
+	return strings.ReplaceAll(c.City, " ", "_")
 }

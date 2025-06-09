@@ -124,9 +124,9 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 				"json_path": cfg.GeoJSONPath,
 			})
 			if err == nil {
-				location, err := geocoder.GetLocationFromGPS(lat, lon)
-				if err == nil && location != "" {
-					date = fmt.Sprintf("%s-%s", date, location)
+				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
+				if err == nil && countryCity != nil {
+					date = fmt.Sprintf("%s-%s-%s", date, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
 				}
 			}
 		}

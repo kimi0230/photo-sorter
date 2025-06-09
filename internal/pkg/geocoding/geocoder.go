@@ -5,7 +5,12 @@ import (
 )
 
 type Geocoder interface {
-	GetLocationFromGPS(lat, lon float64) (string, error)
+	GetLocationFromGPS(lat, lon float64) (*CountryCity, error)
+}
+
+type CountryCity struct {
+	Country string
+	City    string
 }
 
 // GeocoderType 定義地理編碼器的類型
