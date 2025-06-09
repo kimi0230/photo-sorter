@@ -39,7 +39,7 @@ func main() {
 	// 顯示版本資訊
 	if showVer {
 		fmt.Println(version.GetVersion())
-		os.Exit(0)
+		return
 	}
 
 	// 載入配置
