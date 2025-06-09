@@ -35,7 +35,7 @@ jobs:
             VERSION=$(yq eval '.version' config.yaml)
           else
             # 如果沒有 yq，使用 grep 和 sed 來提取版本號
-            VERSION=$(grep '^version:' config.yaml | sed 's/version: *//')
+            VERSION=$(grep '^version:' configs/config.yaml | sed 's/version: *//')
           fi
           
           # 如果版本號為空，使用 git describe
