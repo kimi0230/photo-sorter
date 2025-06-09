@@ -96,3 +96,39 @@ func TestGeocoderLocationMapping(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkGetLocationFromGPS(b *testing.B) {
+	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
+
+	geocoder, err := NewGeocoder(GeoStateType, map[string]interface{}{
+		"json_path": testJSONPath,
+	})
+	if err != nil {
+		b.Fatalf("建立地理編碼器失敗: %v", err)
+	}
+
+	// 測試不同位置的效能
+	testCases := []struct {
+		name string
+		lat  float64
+		lon  float64
+	}{
+		{"台北", 25.0330, 121.5654},
+		{"澎湖", 23.5494003, 119.5890471},
+		{"東京", 35.6895, 139.6917},
+		{"紐約", 40.7128, -74.0060},
+		{"倫敦", 51.5074, -0.1278},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, err := geocoder.GetLocationFromGPS(tc.lat, tc.lon)
+				if err != nil {
+					b.Fatalf("取得位置失敗: %v", err)
+				}
+			}
+		})
+	}
+}

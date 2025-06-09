@@ -9,3 +9,9 @@ ogrinfo ./vsizip/ne_50m_admin_1_states_provinces.shp -al -so
 ogrinfo vsizip/ne_10m_admin_1_states_provinces.shp
 ogrinfo ./vsizip/ne_10m_admin_1_states_provinces.shp -al -so
 ```
+
+
+```sh
+brew install graphviz
+go tool pprof -http=:8080 cpu.prof
+```

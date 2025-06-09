@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 
 	photosorter "photo-sorter/internal/app/photo-sorter"
@@ -21,6 +22,8 @@ var (
 	dryRun     bool
 	configPath string
 	showVer    bool
+	cpuProfile string // CPU profile 檔案路徑
+	memProfile string // 記憶體 profile 檔案路徑
 )
 
 func init() {
@@ -30,6 +33,8 @@ func init() {
 	flag.BoolVar(&dryRun, "dry-run", false, "僅顯示將搬移的路徑，不實際執行")
 	flag.StringVar(&configPath, "c", "config.yaml", "配置檔案路徑")
 	flag.BoolVar(&showVer, "version", false, "顯示版本資訊")
+	flag.StringVar(&cpuProfile, "cpuprofile", "", "CPU profile 檔案路徑")
+	flag.StringVar(&memProfile, "memprofile", "", "記憶體 profile 檔案路徑")
 }
 
 func main() {
@@ -40,6 +45,29 @@ func main() {
 	if showVer {
 		fmt.Println(version.GetVersion())
 		return
+	}
+
+	// 啟動 CPU profiling
+	if cpuProfile != "" {
+		f, err := os.Create(cpuProfile)
+		if err != nil {
+			log.Fatalf("建立 CPU profile 失敗: %v", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatalf("啟動 CPU profile 失敗: %v", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
+	// 啟動記憶體 profiling
+	if memProfile != "" {
+		f, err := os.Create(memProfile)
+		if err != nil {
+			log.Fatalf("建立記憶體 profile 失敗: %v", err)
+		}
+		defer f.Close()
+		defer pprof.WriteHeapProfile(f)
 	}
 
 	// 載入配置
