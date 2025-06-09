@@ -51,10 +51,10 @@ func LoadConfig(configPath string) (*Config, error) {
 		cfg.EnableGeoTag = true
 	}
 	if cfg.GeoJSONPath == "" {
-		cfg.GeoJSONPath = "./internal/pkg/geocoding/countries.geo.json"
+		cfg.GeoJSONPath = "./internal/pkg/geocoding/geodata/states.geojson"
 	}
 	if cfg.GeocoderType == "" {
-		cfg.GeocoderType = geocoding.GeoAlpha3JSONType
+		cfg.GeocoderType = geocoding.GeoStateType
 	}
 
 	return &cfg, nil

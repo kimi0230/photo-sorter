@@ -68,7 +68,10 @@ jobs:
           cp $BINARY_NAME $RELEASE_DIR/photo-sorter
           
           # 複製配置檔案
-          cp config.yaml $RELEASE_DIR/config.yaml
+          cp configs/config.yaml $RELEASE_DIR/config.yaml
+
+          # 複製 geodata 資料夾
+          cp -r geodata $RELEASE_DIR/geodata
           
           # 建立壓縮檔
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then

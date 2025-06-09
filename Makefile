@@ -1,10 +1,10 @@
-.PHONY: build clean run docker-build docker-run version help
+.PHONY: build clean run docker-build docker-run version help download_data data
 
 # 建置參數
 BINARY_NAME=photo-sorter
 DOCKER_IMAGE=photo-sorter
 MAIN_PATH=cmd/photo-sorter/main.go
-CONFIG_PATH=config.yaml
+CONFIG_PATH=configs/config.yaml
 
 # 從配置檔案讀取版本號（移除註解和引號）
 VERSION = $(shell grep '^version:' $(CONFIG_PATH) | sed 's/version: *//' | sed 's/"//g' | sed 's/\#.*$$//' | xargs)
@@ -39,6 +39,17 @@ docker-build:
 # 執行 Docker 容器
 docker-run:
 	docker run -v $(PWD):/app $(DOCKER_IMAGE):$(VERSION) -c $(CONFIG_PATH)
+
+download_data:
+	if [ ! -f ./vsizip/ne_10m_admin_1_states_provinces.zip ]; then curl -L -o ./vsizip/ne_10m_admin_1_states_provinces.zip https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_1_states_provinces.zip; fi
+
+data: download_data
+	rm -rf geodata/states.geojson
+	unzip -o ./vsizip/ne_10m_admin_1_states_provinces.zip -d ./vsizip
+	ogr2ogr -f GeoJSON -overwrite -makevalid -lco COORDINATE_PRECISION=6 \
+	-sql "SELECT admin, name_en as name, adm0_a3 FROM ne_10m_admin_1_states_provinces" \
+	geodata/states.geojson ./vsizip/ne_10m_admin_1_states_provinces.shp
+
 
 # 顯示幫助資訊
 help:

@@ -17,7 +17,7 @@ func TestNewGeocoder(t *testing.T) {
 	}{
 		{
 			name:         "成功建立 GeoAlpha3JSON 地理編碼器",
-			geocoderType: GeoAlpha3JSONType,
+			geocoderType: GeoStateType,
 			options: map[string]interface{}{
 				"json_path": testJSONPath,
 			},
@@ -25,7 +25,7 @@ func TestNewGeocoder(t *testing.T) {
 		},
 		{
 			name:         "缺少 json_path 選項",
-			geocoderType: GeoAlpha3JSONType,
+			geocoderType: GeoStateType,
 			options:      map[string]interface{}{},
 			wantErr:      true,
 			errMsg:       "json_path is required for GeoAlpha3JSON type",
@@ -62,7 +62,7 @@ func TestNewGeocoder(t *testing.T) {
 			}
 
 			// 測試地理編碼器功能
-			if tt.geocoderType == GeoAlpha3JSONType {
+			if tt.geocoderType == GeoStateType {
 				location, err := geocoder.GetLocationFromGPS(23.5, 121.0)
 				if err != nil {
 					t.Errorf("GetLocationFromGPS 失敗: %v", err)
@@ -76,9 +76,9 @@ func TestNewGeocoder(t *testing.T) {
 }
 
 func TestGeocoderLocationMapping(t *testing.T) {
-	testJSONPath := "./countries.geo.json"
+	testJSONPath := "./geodata/states.geojson"
 
-	geocoder, err := NewGeocoder(GeoAlpha3JSONType, map[string]interface{}{
+	geocoder, err := NewGeocoder(GeoStateType, map[string]interface{}{
 		"json_path": testJSONPath,
 	})
 	if err != nil {
@@ -92,64 +92,64 @@ func TestGeocoderLocationMapping(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "台灣台北",
+			name:     "台北",
 			lat:      25.0330,
 			lon:      121.5654,
-			expected: "Taiwan",
+			expected: "New Taipei",
 		},
 		{
-			name:     "台灣高雄",
-			lat:      22.69957,
-			lon:      120.1659378,
-			expected: "Taiwan",
+			name:     "澎湖",
+			lat:      23.5494003,
+			lon:      119.5890471,
+			expected: "Penghu",
 		},
 		{
 			name:     "日本東京",
 			lat:      35.6895,
 			lon:      139.6917,
-			expected: "Japan",
+			expected: "Tokyo",
 		},
 		{
 			name:     "美國紐約",
 			lat:      40.7128,
 			lon:      -74.0060,
-			expected: "United States of America",
+			expected: "New York",
 		},
 		{
 			name:     "英國倫敦",
 			lat:      51.5074,
 			lon:      -0.1278,
-			expected: "United Kingdom",
+			expected: "Westminster",
 		},
 		{
 			name:     "法國巴黎",
 			lat:      48.8566,
 			lon:      2.3522,
-			expected: "France",
+			expected: "Paris",
 		},
 		{
 			name:     "德國柏林",
 			lat:      52.5200,
 			lon:      13.4050,
-			expected: "Germany",
+			expected: "Brandenburg",
 		},
 		{
 			name:     "中國北京",
 			lat:      39.9384151,
 			lon:      116.0671435,
-			expected: "China",
+			expected: "Beijing",
 		},
 		{
 			name:     "韓國首爾",
 			lat:      37.5665,
 			lon:      126.9780,
-			expected: "South Korea",
+			expected: "Gyeonggi",
 		},
 		{
 			name:     "澳洲雪梨",
 			lat:      -33.8688,
 			lon:      151.2093,
-			expected: "Australia",
+			expected: "New South Wales",
 		},
 	}
 

@@ -12,8 +12,8 @@ type Geocoder interface {
 type GeocoderType string
 
 const (
-	// GeoAlpha3JSONType 使用 GeoJSON 檔案的地理編碼器
-	GeoAlpha3JSONType GeocoderType = "geo_alpha3_json"
+	// GeoStateType 使用 GeoJSON 檔案的地理編碼器
+	GeoStateType GeocoderType = "geo_state"
 	// 可以在這裡添加其他類型
 )
 
@@ -22,12 +22,12 @@ const (
 // options 是建立地理編碼器時需要的選項
 func NewGeocoder(geocoderType GeocoderType, options map[string]interface{}) (Geocoder, error) {
 	switch geocoderType {
-	case GeoAlpha3JSONType:
+	case GeoStateType:
 		jsonPath, ok := options["json_path"].(string)
 		if !ok {
 			return nil, errors.New("json_path is required for GeoAlpha3JSON type")
 		}
-		return NewGeoAlpha3JSON(jsonPath), nil
+		return NewGeoState(jsonPath), nil
 	default:
 		return nil, errors.New("unsupported geocoder type")
 	}
