@@ -10,8 +10,8 @@
             "args": [
                 "-src",
                 "${workspaceFolder}/source_media",
-                "-dst",
-                "${workspaceFolder}/sorted_media",
+                // "-dst",
+                // "${workspaceFolder}/sorted_media",
                 "-workers",
                 "4",
                 "-c",

@@ -6,7 +6,7 @@ version: "0.1.0"  # 版本號
 src_dir: "source_media"
 
 # 整理後儲存的位置
-dst_dir: "sorted_media"
+dst_dir: ""
 
 # 最大併發處理數量
 workers: 4

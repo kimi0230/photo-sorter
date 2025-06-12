@@ -41,6 +41,9 @@ func LoadConfig(configPath string) (*Config, error) {
 	if cfg.Workers == 0 {
 		cfg.Workers = 4
 	}
+	if cfg.DstDir == "" {
+		cfg.DstDir = cfg.SrcDir + "_sort"
+	}
 	if cfg.DryRun {
 		cfg.DryRun = true
 	}
