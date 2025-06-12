@@ -46,3 +46,4 @@ ignore:
   - ".log"
   - ".yaml"
   - ".sample"
+  - ".DS_Store"

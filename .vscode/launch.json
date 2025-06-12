@@ -16,7 +16,6 @@
                 "4",
                 "-c",
                 "${workspaceFolder}/configs/config.yaml"
-                // "-dry-run"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -33,7 +32,8 @@
                 "${input:dstDir}",
                 "-workers",
                 "${input:workers}",
-                "-dry-run"
+                "-c",
+                "${workspaceFolder}/configs/config.yaml"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -51,13 +51,13 @@
             "id": "srcDir",
             "type": "promptString",
             "description": "請輸入原始照片資料夾路徑",
-            "default": "."
+            "default": "${workspaceFolder}/source_media"
         },
         {
             "id": "dstDir",
             "type": "promptString",
             "description": "請輸入目標資料夾路徑",
-            "default": "."
+            "default": "${workspaceFolder}/sorted_media"
         },
         {
             "id": "workers",

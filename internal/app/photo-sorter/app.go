@@ -23,15 +23,45 @@ type dirStats struct {
 	subDirs   map[string]*dirStats
 }
 
+// Progress 用於追蹤處理進度
+type Progress struct {
+	mu             sync.RWMutex
+	processedFiles int
+	totalFiles     int
+}
+
+func (p *Progress) Update() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.processedFiles++
+}
+
+func (p *Progress) SetTotal(total int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.totalFiles = total
+}
+
+func (p *Progress) GetStatus() (processed, total int) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.processedFiles, p.totalFiles
+}
+
+// Stats 用於追蹤處理統計
+type Stats struct {
+	totalFiles      int
+	successCount    int
+	failureCount    int
+	unsupportedExts map[string]int
+}
+
 type App struct {
-	config *config.Config
-	logger *logger.Logger
-	stats  struct {
-		totalFiles      int
-		successCount    int
-		failureCount    int
-		unsupportedExts map[string]int // 記錄不支援的副檔名及其數量
-	}
+	config   *config.Config
+	logger   *logger.Logger
+	stats    Stats
+	progress *Progress
+	mu       sync.Mutex
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
@@ -43,14 +73,10 @@ func NewApp(cfg *config.Config) (*App, error) {
 	return &App{
 		config: cfg,
 		logger: log,
-		stats: struct {
-			totalFiles      int
-			successCount    int
-			failureCount    int
-			unsupportedExts map[string]int
-		}{
+		stats: Stats{
 			unsupportedExts: make(map[string]int),
 		},
+		progress: &Progress{},
 	}, nil
 }
 
@@ -110,6 +136,12 @@ func (a *App) Run(ctx context.Context) error {
 	if err := a.printDirectoryStats(a.config.SrcDir); err != nil {
 		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
 	}
+
+	// 啟動進度監控
+	progressCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go a.monitorProgress(progressCtx)
+
 	// 記錄開始時間
 	startTime := time.Now()
 
@@ -117,9 +149,46 @@ func (a *App) Run(ctx context.Context) error {
 	jobs := make(chan string, 100)
 	results := make(chan error, 100)
 
+	// 先計算總檔案數
+	totalFiles, ignoredFiles := 0, 0
+	err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 檢查是否為目標目錄或其子目錄
+		if strings.HasPrefix(path, a.config.DstDir) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// 只計算來源目錄中的檔案
+		if !info.IsDir() {
+			// 檢查是否要忽略此檔案
+			if a.config.ShouldIgnore(path) {
+				ignoredFiles++
+				return nil
+			}
+			totalFiles++
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("計算總檔案數失敗: %v", err)
+	}
+
+	// 設定總檔案數
+	a.progress.SetTotal(totalFiles)
+	a.setTotalFiles(totalFiles)
+
 	// 啟動工作池
-	fmt.Printf("啟動工作池，併發數: %d\n", a.config.Workers)
-	a.logger.LogInfo("啟動工作池", zap.Int("workers", a.config.Workers))
+	fmt.Printf("Workers 數量: %d，需處理總檔案數: %d，忽略的檔案: %d\n", a.config.Workers, totalFiles, ignoredFiles)
+	a.logger.LogInfo("Start Workers",
+		zap.Int("workers", a.config.Workers),
+		zap.Int("total_files", totalFiles),
+	)
 	var wg sync.WaitGroup
 	for i := 0; i < a.config.Workers; i++ {
 		wg.Add(1)
@@ -130,9 +199,9 @@ func (a *App) Run(ctx context.Context) error {
 	go func() {
 		for err := range results {
 			if err != nil {
-				a.stats.failureCount++
+				a.incrementFailure()
 			} else {
-				a.stats.successCount++
+				a.incrementSuccess()
 			}
 		}
 	}()
@@ -161,7 +230,6 @@ func (a *App) Run(ctx context.Context) error {
 
 				// 檢查是否為支援的格式
 				if a.config.IsSupportedFormat(path) {
-					a.stats.totalFiles++
 					select {
 					case <-ctx.Done():
 						return ctx.Err()
@@ -169,8 +237,7 @@ func (a *App) Run(ctx context.Context) error {
 					}
 				} else {
 					// 處理不支援的檔案
-					a.stats.totalFiles++
-					a.stats.unsupportedExts[filepath.Ext(path)]++
+					a.incrementUnsupportedExt(filepath.Ext(path))
 
 					// 建立 unknown_format 資料夾
 					unknownDir := filepath.Join(a.config.DstDir, "unknown_format")
@@ -201,9 +268,9 @@ func (a *App) Run(ctx context.Context) error {
 
 					if err := a.copyFile(path, targetPath); err != nil {
 						a.logger.LogError(path, fmt.Sprintf("複製不支援的檔案失敗: %v", err))
-						a.stats.failureCount++
+						a.incrementFailure()
 					} else {
-						a.stats.successCount++
+						a.incrementSuccess()
 					}
 				}
 			}
@@ -222,22 +289,25 @@ func (a *App) Run(ctx context.Context) error {
 	duration := time.Since(startTime)
 
 	// 輸出統計資訊
+	stats := a.getStats()
 	a.logger.LogInfo("處理完成",
-		zap.Int("total_files", a.stats.totalFiles),
-		zap.Int("success_count", a.stats.successCount),
-		zap.Int("failure_count", a.stats.failureCount),
+		zap.Int("total_files", stats.totalFiles),
+		zap.Int("success_count", stats.successCount),
+		zap.Int("failure_count", stats.failureCount),
+		zap.Int("ignored_files", ignoredFiles),
 		zap.Duration("duration", duration),
 	)
 	fmt.Printf("\n處理完成:\n")
-	fmt.Printf("總檔案數: %d\n", a.stats.totalFiles)
-	fmt.Printf("成功處理: %d\n", a.stats.successCount)
-	fmt.Printf("處理失敗: %d\n", a.stats.failureCount)
+	fmt.Printf("總檔案數: %d\n", stats.totalFiles)
+	fmt.Printf("成功處理: %d\n", stats.successCount)
+	fmt.Printf("處理失敗: %d\n", stats.failureCount)
+	fmt.Printf("忽略的檔案: %d\n", ignoredFiles)
 	fmt.Printf("處理時間: %v\n", duration)
 
 	// 輸出不支援的檔案格式統計
-	if len(a.stats.unsupportedExts) > 0 {
+	if len(stats.unsupportedExts) > 0 {
 		a.logger.LogInfo("不支援的檔案格式統計",
-			zap.Any("unsupported_formats", a.stats.unsupportedExts),
+			zap.Any("unsupported_formats", stats.unsupportedExts),
 		)
 	}
 
@@ -247,6 +317,25 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (a *App) monitorProgress(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			processed, total := a.progress.GetStatus()
+			if total > 0 {
+				percentage := float64(processed) / float64(total) * 100
+				fmt.Printf("\r進度: %.1f%% (%d/%d)\n",
+					percentage, processed, total)
+			}
+		}
+	}
 }
 
 func (a *App) worker(ctx context.Context, id int, jobs <-chan string, results chan<- error, wg *sync.WaitGroup) {
@@ -259,6 +348,7 @@ func (a *App) worker(ctx context.Context, id int, jobs <-chan string, results ch
 			if !ok {
 				return
 			}
+			a.progress.Update()
 			err := a.ProcessFile(path)
 			results <- err
 		}
@@ -274,16 +364,19 @@ func (a *App) calculateTotalFiles(dir *dirStats) int {
 }
 
 func (a *App) printDirStatsRecursive(dir *dirStats, level int) {
-	// 計算總檔案數（包含子目錄）
-	totalFiles := a.calculateTotalFiles(dir)
+	// 計算當前目錄的檔案數（不包含子目錄）
+	currentDirFiles := dir.fileCount
 
 	// 輸出當前目錄資訊
 	indent := strings.Repeat("  ", level)
 	dirName := filepath.Base(dir.path)
-	// if dirName == "." {
-	// 	dirName = "sorted_media"
-	// }
-	a.logger.LogInfo(fmt.Sprintf("%s%s/ (%d 個檔案)", indent, dirName, totalFiles))
+
+	// 如果目錄中有檔案，顯示當前目錄的檔案數
+	if currentDirFiles > 0 {
+		a.logger.LogInfo(fmt.Sprintf("%s%s/ (%d 個檔案)", indent, dirName, currentDirFiles))
+	} else {
+		a.logger.LogInfo(fmt.Sprintf("%s%s/", indent, dirName))
+	}
 
 	// 遞迴輸出子目錄
 	for _, subDir := range dir.subDirs {
@@ -351,4 +444,35 @@ func (a *App) printDirectoryStats(dir string) error {
 	a.logger.LogInfo(fmt.Sprintf("總計：%d 個檔案", actualTotal))
 
 	return nil
+}
+
+// 統計相關的方法
+func (a *App) incrementSuccess() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.stats.successCount++
+}
+
+func (a *App) incrementFailure() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.stats.failureCount++
+}
+
+func (a *App) incrementUnsupportedExt(ext string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.stats.unsupportedExts[ext]++
+}
+
+func (a *App) setTotalFiles(total int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.stats.totalFiles = total
+}
+
+func (a *App) getStats() Stats {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.stats
 }
