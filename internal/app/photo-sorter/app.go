@@ -54,6 +54,7 @@ type Stats struct {
 	successCount    int
 	failureCount    int
 	unsupportedExts map[string]int
+	ignoredExts     map[string]int
 }
 
 type App struct {
@@ -75,6 +76,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		logger: log,
 		stats: Stats{
 			unsupportedExts: make(map[string]int),
+			ignoredExts:     make(map[string]int),
 		},
 		progress: &Progress{},
 	}, nil
@@ -169,6 +171,7 @@ func (a *App) Run(ctx context.Context) error {
 			// 檢查是否要忽略此檔案
 			if a.config.ShouldIgnore(path) {
 				ignoredFiles++
+				a.incrementIgnoredExt(filepath.Ext(path))
 				return nil
 			}
 			totalFiles++
@@ -308,6 +311,13 @@ func (a *App) Run(ctx context.Context) error {
 	if len(stats.unsupportedExts) > 0 {
 		a.logger.LogInfo("不支援的檔案格式統計",
 			zap.Any("unsupported_formats", stats.unsupportedExts),
+		)
+	}
+
+	// 輸出被忽略的檔案格式統計
+	if len(stats.ignoredExts) > 0 {
+		a.logger.LogInfo("被忽略的檔案格式統計",
+			zap.Any("ignored_formats", stats.ignoredExts),
 		)
 	}
 
@@ -463,6 +473,12 @@ func (a *App) incrementUnsupportedExt(ext string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.stats.unsupportedExts[ext]++
+}
+
+func (a *App) incrementIgnoredExt(ext string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.stats.ignoredExts[ext]++
 }
 
 func (a *App) setTotalFiles(total int) {
