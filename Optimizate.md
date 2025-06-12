@@ -84,3 +84,7 @@ func (a *App) copyFile(src, dst string) error {
    - 使用資料庫儲存（如 SQLite）
 
 您要我幫您實作這些優化嗎？
+
+
+---
+其他方案: 替換成 **SpatiaLite**
