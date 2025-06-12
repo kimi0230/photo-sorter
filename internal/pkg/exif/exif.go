@@ -12,6 +12,7 @@ import (
 
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/geocoding"
+	"photo-sorter/internal/pkg/tagger"
 )
 
 type ExifData struct {
@@ -126,6 +127,15 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 			if err == nil {
 				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
 				if err == nil && countryCity != nil {
+					// 為檔案添加標籤
+					fileTagger, err := tagger.NewTagger()
+					if err != nil {
+						return "", fmt.Errorf("建立標籤實例失敗: %v", err)
+					}
+					tagName := fmt.Sprintf("%s-%s", countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
+					if err := fileTagger.AddTag(path, tagName); err != nil {
+						fmt.Printf("為檔案添加標籤失敗: %v\n", err)
+					}
 					date = fmt.Sprintf("%s-%s-%s", date, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
 				}
 			}
