@@ -12,6 +12,7 @@ import (
 
 	photosorter "photo-sorter/internal/app/photo-sorter"
 	"photo-sorter/internal/pkg/config"
+	"photo-sorter/internal/pkg/logger"
 	"photo-sorter/internal/pkg/version"
 )
 
@@ -79,11 +80,15 @@ func main() {
 	// 套用命令列參數
 	cfg.ApplyFlags(srcDir, dstDir, workers, dryRun)
 
-	// 建立應用程式
-	app, err := photosorter.NewApp(cfg)
+	// 建立日誌記錄器
+	logger, err := logger.NewLogger(cfg.LogLevel)
 	if err != nil {
-		log.Fatalf("建立應用程式失敗: %v", err)
+		log.Fatalf("建立日誌記錄器失敗: %v", err)
 	}
+	defer logger.Close()
+
+	// 建立應用程式
+	app := photosorter.NewApp(cfg, logger)
 	defer app.Close()
 
 	// 建立 context 用於優雅關閉

@@ -29,18 +29,13 @@ type App struct {
 }
 
 // NewApp 建立新的應用程式實例
-func NewApp(cfg *config.Config) (*App, error) {
-	log, err := logger.NewLogger()
-	if err != nil {
-		return nil, err
-	}
-
+func NewApp(cfg *config.Config, log *logger.Logger) *App {
 	return &App{
 		config:   cfg,
 		logger:   log,
 		stats:    stats.NewStats(),
 		progress: progress.NewProgress(),
-	}, nil
+	}
 }
 
 // Close 關閉應用程式

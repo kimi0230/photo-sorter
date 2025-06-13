@@ -22,6 +22,7 @@ type Config struct {
 	EnableGeoTag bool                   `yaml:"enable_geo_tag"` // 是否啟用地理位置標籤
 	GeoJSONPath  string                 `yaml:"geo_json_path"`  // GeoJSON 檔案路徑
 	GeocoderType geocoding.GeocoderType `yaml:"geocoder_type"`  // 地理編碼器類型
+	LogLevel     string                 `yaml:"log_level"`      // 日誌等級：debug, info, warn, error
 }
 
 func LoadConfig(configPath string) (*Config, error) {
@@ -58,6 +59,9 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 	if cfg.GeocoderType == "" {
 		cfg.GeocoderType = geocoding.GeoStateType
+	}
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info" // 預設日誌等級為 info
 	}
 
 	return &cfg, nil

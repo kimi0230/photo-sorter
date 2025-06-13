@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,7 +15,23 @@ type Logger struct {
 	logger *zap.Logger
 }
 
-func NewLogger() (*Logger, error) {
+// getLogLevel 將字串轉換為 zapcore.Level
+func getLogLevel(level string) zapcore.Level {
+	switch strings.ToLower(level) {
+	case "debug":
+		return zapcore.DebugLevel
+	case "info":
+		return zapcore.InfoLevel
+	case "warn":
+		return zapcore.WarnLevel
+	case "error":
+		return zapcore.ErrorLevel
+	default:
+		return zapcore.InfoLevel
+	}
+}
+
+func NewLogger(logLevel string) (*Logger, error) {
 	// 建立日誌目錄
 	logDir := "logs"
 	if err := os.MkdirAll(logDir, 0755); err != nil {
@@ -43,11 +60,14 @@ func NewLogger() (*Logger, error) {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 
+	// 取得設定的日誌等級
+	level := getLogLevel(logLevel)
+
 	// 建立檔案輸出
 	fileCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderConfig),
 		zapcore.AddSync(logFile),
-		zapcore.InfoLevel,
+		level,
 	)
 
 	// 建立控制台輸出
@@ -55,7 +75,7 @@ func NewLogger() (*Logger, error) {
 	consoleCore := zapcore.NewCore(
 		consoleEncoder,
 		zapcore.AddSync(os.Stdout),
-		zapcore.InfoLevel,
+		level,
 	)
 
 	// 合併兩個輸出

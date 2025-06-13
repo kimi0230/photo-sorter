@@ -26,6 +26,9 @@ geo_json_path: "./geodata/states.geojson"
 # 地理編碼器類型
 geocoder_type: "geo_state"
 
+# 日誌等級設定 (debug, info, warn, error)
+log_level: "info"
+
 # 支援的檔案格式
 formats:
   - ".jpg"
