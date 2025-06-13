@@ -1,4 +1,4 @@
-.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files
+.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify
 
 # 建置參數
 BINARY_NAME=photo-sorter
@@ -71,6 +71,16 @@ count-files:
 	@chmod +x scripts/count_files.sh
 	@./scripts/count_files.sh "$(path)"
 
+# 驗證目錄
+verify:
+	@if [ -z "$(source)" ] || [ -z "$(target)" ]; then \
+		echo "錯誤：請提供來源和目標目錄路徑"; \
+		echo "使用方式：make verify source=/path/to/source target=/path/to/target"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/verify.sh
+	@./scripts/verify.sh "$(source)" "$(target)"
+
 # 顯示幫助資訊
 help:
 	@echo "可用的目標："
@@ -80,4 +90,6 @@ help:
 	@echo "  version      - 顯示版本資訊"
 	@echo "  docker-build - 建置 Docker 映像"
 	@echo "  docker-run   - 執行 Docker 容器"
+	@echo "  count-files  - 計算目錄中的檔案數量"
+	@echo "  verify       - 比對兩個目錄的檔案差異"
 	@echo "  help         - 顯示此幫助資訊"
