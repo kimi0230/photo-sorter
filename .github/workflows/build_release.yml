@@ -77,6 +77,9 @@ jobs:
 
           # 複製 geodata 資料夾
           cp -r geodata $RELEASE_DIR/geodata
+
+          # 複製 scripts 資料夾
+          cp -r scripts $RELEASE_DIR/scripts
           
           # 建立壓縮檔
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
