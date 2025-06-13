@@ -12,7 +12,6 @@ import (
 
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/geocoding"
-	"photo-sorter/internal/pkg/tagger"
 )
 
 type ExifData struct {
@@ -23,9 +22,9 @@ type ExifData struct {
 	GPSLongitude    string `json:"GPSLongitude"`
 }
 
-// parseGPSString 將 GPS 字串轉換為浮點數
+// ParseGPSString 將 GPS 字串轉換為浮點數
 // 格式範例: "22 deg 41' 58.80\" N"
-func parseGPSString(gpsStr string) (float64, error) {
+func ParseGPSString(gpsStr string) (float64, error) {
 	if gpsStr == "" {
 		return 0, nil
 	}
@@ -110,12 +109,12 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 
 	// 如果有啟用地理位置標籤且有 GPS 資訊，則加入地理位置
 	if cfg.EnableGeoTag && exif.GPSLatitude != "" && exif.GPSLongitude != "" {
-		lat, err := parseGPSString(exif.GPSLatitude)
+		lat, err := ParseGPSString(exif.GPSLatitude)
 		if err != nil {
 			return "", fmt.Errorf("解析緯度失敗: %v", err)
 		}
 
-		lon, err := parseGPSString(exif.GPSLongitude)
+		lon, err := ParseGPSString(exif.GPSLongitude)
 		if err != nil {
 			return "", fmt.Errorf("解析經度失敗: %v", err)
 		}
@@ -127,19 +126,6 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 			if err == nil {
 				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
 				if err == nil && countryCity != nil {
-					// 為檔案添加標籤
-					if !cfg.DryRun {
-						fileTagger, err := tagger.NewTagger()
-						if err != nil {
-							return "", fmt.Errorf("建立標籤實例失敗: %v", err)
-						}
-						tagName := fmt.Sprintf("%s-%s", countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
-						if err := fileTagger.AddTag(path, tagName); err != nil {
-							fmt.Printf("為檔案添加標籤失敗: %v\n", err)
-						}
-					} else {
-						fmt.Printf("DryRun: 為檔案添加標籤: %s\n", path)
-					}
 					date = fmt.Sprintf("%s-%s-%s", date, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
 				}
 			}
