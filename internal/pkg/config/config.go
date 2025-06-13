@@ -74,7 +74,7 @@ func (c *Config) ApplyFlags(srcDir, dstDir string, workers int) {
 	}
 	if dstDir == "." {
 		baseName := filepath.Base(srcDir)
-		c.DstDir = filepath.Join(filepath.Dir(srcDir), baseName+"_sort")
+		c.DstDir = filepath.Join(".", baseName+"_sort")
 	} else {
 		c.DstDir = dstDir
 	}
