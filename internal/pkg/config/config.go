@@ -23,6 +23,7 @@ type Config struct {
 	GeoJSONPath  string                 `yaml:"geo_json_path"`  // GeoJSON 檔案路徑
 	GeocoderType geocoding.GeocoderType `yaml:"geocoder_type"`  // 地理編碼器類型
 	LogLevel     string                 `yaml:"log_level"`      // 日誌等級：debug, info, warn, error
+	EnableVerify bool                   `yaml:"enable_verify"`  // 是否啟用驗證
 }
 
 func LoadConfig(configPath string) (*Config, error) {

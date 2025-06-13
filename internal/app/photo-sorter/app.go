@@ -13,6 +13,7 @@ import (
 	"photo-sorter/internal/app/photo-sorter/file"
 	"photo-sorter/internal/app/photo-sorter/progress"
 	"photo-sorter/internal/app/photo-sorter/stats"
+	"photo-sorter/internal/app/photo-sorter/verify"
 	"photo-sorter/internal/app/photo-sorter/worker"
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/logger"
@@ -50,6 +51,16 @@ func (a *App) Run(ctx context.Context) error {
 	a.logger.LogInfo("開始處理",
 		zap.String("來源資料夾", a.config.SrcDir),
 		zap.String("目標資料夾", a.config.DstDir),
+		zap.Bool("是否啟用驗證", a.config.EnableVerify),
+		zap.Any("忽略的檔案", a.config.Ignore),
+		zap.Any("支援的檔案格式", a.config.Formats),
+		zap.String("日期格式", a.config.DateFormat),
+		zap.Bool("是否啟用地理位置標籤", a.config.EnableGeoTag),
+		zap.String("地理編碼器類型", string(a.config.GeocoderType)),
+		zap.String("日誌等級", a.config.LogLevel),
+		zap.Bool("是否啟用驗證", a.config.EnableVerify),
+		zap.Any("忽略的檔案", a.config.Ignore),
+		zap.Any("支援的檔案格式", a.config.Formats),
 	)
 
 	if err := directory.PrintDirectoryStats(a.config.SrcDir, a.logger); err != nil {
@@ -191,18 +202,6 @@ func (a *App) Run(ctx context.Context) error {
 	// 輸出統計資訊
 	duration := time.Since(startTime)
 	stats := a.stats.GetStats()
-	a.logger.LogInfo("處理完成",
-		zap.Int("total_files", stats.TotalFiles),
-		zap.Int("success_count", stats.SuccessCount),
-		zap.Int("failure_count", stats.FailureCount),
-		zap.Duration("duration", duration),
-	)
-	fmt.Printf("\n========== 處理完成 ==========\n")
-	fmt.Printf("總檔案數: %d\n", stats.TotalFiles)
-	fmt.Printf("成功處理: %d\n", stats.SuccessCount)
-	fmt.Printf("處理失敗: %d\n", stats.FailureCount)
-	fmt.Printf("處理時間: %v\n", duration)
-	fmt.Printf("\n========== 處理完成 ==========\n")
 
 	// 輸出不支援的檔案格式統計
 	if len(stats.UnsupportedExts) > 0 {
@@ -222,6 +221,38 @@ func (a *App) Run(ctx context.Context) error {
 	if err := directory.PrintDirectoryStats(a.config.DstDir, a.logger); err != nil {
 		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
 	}
+
+	// 驗證目錄
+	matchResult := ""
+	if a.config.EnableVerify {
+		result, err := verify.CompareDirectories(a.config.SrcDir, a.config.DstDir)
+		if err != nil {
+			a.logger.LogError("", fmt.Sprintf("驗證目錄失敗: %v", err))
+		}
+		match := verify.IsMatch(result, a.config.Ignore)
+		if match {
+			matchResult = "目錄匹配成功"
+			a.logger.LogInfo("目錄匹配成功")
+		} else {
+			matchResult = "目錄不匹配"
+			a.logger.LogError("", "目錄不匹配")
+		}
+	}
+
+	a.logger.LogInfo("處理完成",
+		zap.Int("total_files", stats.TotalFiles),
+		zap.Int("success_count", stats.SuccessCount),
+		zap.Int("failure_count", stats.FailureCount),
+		zap.String("result", matchResult),
+		zap.Duration("duration", duration),
+	)
+	fmt.Printf("\n========== 處理完成 ==========\n")
+	fmt.Printf("總檔案數: %d\n", stats.TotalFiles)
+	fmt.Printf("成功處理: %d\n", stats.SuccessCount)
+	fmt.Printf("處理失敗: %d\n", stats.FailureCount)
+	fmt.Printf("目錄匹配結果: %s\n", matchResult)
+	fmt.Printf("處理時間: %v\n", duration)
+	fmt.Printf("========== 處理完成 ==========\n")
 
 	// 檢查是否被取消
 	if ctx.Err() != nil {

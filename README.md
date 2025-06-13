@@ -43,30 +43,60 @@ docker build -t photo-sorter .
 ### 配置檔案說明
 
 ```yaml
-# 基本設定
-src_dir: "/path/to/photos"        # 原始照片資料夾
-dst_dir: "/path/to/output"        # 整理後儲存的位置
-max_workers: 4                    # 最大併發數
-dry_run: false                    # 僅顯示將搬移的路徑，不實際執行
-date_format: "2006-01-02"        # 日期格式
+version: "0.1.10"  # 版本號
 
-# 地理位置標記設定
-enable_geo_tagging: true          # 啟用地理位置標記
-geo_json_path: "./internal/pkg/geocoding/countries.geo.json"  # GeoJSON 檔案路徑
-geocoder_type: "geo_alpha3_json"  # 地理編碼器類型
+# 照片分類工具設定檔
 
-# 檔案格式設定
-supported_formats:                # 支援的檔案格式
+# 原始照片資料夾路徑
+src_dir: "source_media"
+
+# 整理後儲存的位置
+dst_dir: ""
+
+# 是否為乾跑模式（只顯示將要移動的檔案，不實際執行）
+dry_run: false
+
+# 日期格式：YYYY-MM-DD (2006-01-02) 或 YYYY-MM (2006-01)
+date_format: "2006-01"
+
+# 是否啟用地理位置標籤
+enable_geo_tag: true
+
+# GeoJSON 檔案路徑
+geo_json_path: "./geodata/states.geojson"
+
+# 地理編碼器類型
+geocoder_type: "geo_state"
+
+# 日誌等級設定 (debug, info, warn, error)
+log_level: "info"
+
+# 是否啟用驗證
+enable_verify: true
+
+# 支援的檔案格式
+formats:
   - ".jpg"
   - ".jpeg"
   - ".heic"
   - ".png"
   - ".mp4"
-  - ".mov"
-
-ignore_files:                     # 忽略的檔案
+  - ".mov" 
+  
+# 要忽略的檔案類型
+ignore:
+  - ".git"
+  - ".gitignore"
+  - ".go"
+  - ".mod"
+  - ".sum"
+  - ".md"
+  - ".log"
+  - ".yaml"
+  - ".sample"
   - ".DS_Store"
   - "Thumbs.db"
+
 ```
 
 ### 使用 Docker

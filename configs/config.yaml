@@ -1,4 +1,4 @@
-version: "0.1.10"  # 版本號
+version: "0.1.11"  # 版本號
 
 # 照片分類工具設定檔
 
@@ -25,6 +25,9 @@ geocoder_type: "geo_state"
 
 # 日誌等級設定 (debug, info, warn, error)
 log_level: "info"
+
+# 是否啟用驗證
+enable_verify: true
 
 # 支援的檔案格式
 formats:

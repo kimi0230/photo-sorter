@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // CompareResult 儲存比對結果
@@ -70,6 +71,53 @@ func CompareDirectories(sourceDir, targetDir string) (*CompareResult, error) {
 	sort.Strings(result.OnlyInTarget)
 
 	return result, nil
+}
+
+// IsMatch 檢查兩個目錄是否匹配，可以指定要忽略的檔案
+func IsMatch(result *CompareResult, ignorePatterns []string) bool {
+	// 如果沒有差異，直接返回 true
+	if len(result.OnlyInSource) == 0 && len(result.OnlyInTarget) == 0 {
+		return true
+	}
+
+	// 檢查來源目錄中的差異檔案
+	for _, file := range result.OnlyInSource {
+		if !shouldIgnore(file, ignorePatterns) {
+			return false
+		}
+	}
+
+	// 檢查目標目錄中的差異檔案
+	for _, file := range result.OnlyInTarget {
+		if !shouldIgnore(file, ignorePatterns) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// shouldIgnore 檢查檔案是否應該被忽略
+func shouldIgnore(file string, patterns []string) bool {
+	for _, pattern := range patterns {
+		// 支援完整檔名比對
+		if file == pattern {
+			return true
+		}
+		// 支援副檔名比對
+		if strings.HasPrefix(pattern, "*.") && strings.HasSuffix(file, pattern[1:]) {
+			return true
+		}
+		// 支援前綴比對
+		if strings.HasSuffix(pattern, "*") && strings.HasPrefix(file, pattern[:len(pattern)-1]) {
+			return true
+		}
+		// 支援後綴比對
+		if strings.HasPrefix(pattern, "*") && strings.HasSuffix(file, pattern[1:]) {
+			return true
+		}
+	}
+	return false
 }
 
 // getFileList 取得目錄中的所有檔案
