@@ -22,19 +22,21 @@ import (
 
 // App 主要應用程式結構
 type App struct {
-	config   *config.Config
-	logger   *logger.Logger
-	stats    *stats.Stats
-	progress *progress.Progress
+	config    *config.Config
+	logger    *logger.Logger
+	stats     *stats.Stats
+	progress  *progress.Progress
+	startTime time.Time
 }
 
 // NewApp 建立新的應用程式實例
 func NewApp(cfg *config.Config, log *logger.Logger) *App {
 	return &App{
-		config:   cfg,
-		logger:   log,
-		stats:    stats.NewStats(),
-		progress: progress.NewProgress(),
+		config:    cfg,
+		logger:    log,
+		stats:     stats.NewStats(),
+		progress:  progress.NewProgress(),
+		startTime: time.Now(),
 	}
 }
 
@@ -111,21 +113,13 @@ func (a *App) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	for i := 0; i < a.config.Workers; i++ {
 		wg.Add(1)
-		go worker.Worker(ctx, i, jobs, results, &wg, a.config, a.logger, a.progress, a.stats)
+		go func(id int) {
+			defer wg.Done()
+			worker.Worker(ctx, id, jobs, results, a.config, a.logger, a.progress, a.stats)
+		}(i)
 	}
 
-	// 使用 goroutine 處理結果
-	go func() {
-		for err := range results {
-			if err != nil {
-				a.logger.LogError(err.Error(), fmt.Sprintf("處理失敗 %s", err.Error()))
-			} else {
-				a.logger.LogDebug("處理成功")
-			}
-		}
-	}()
-
-	// 使用 goroutine 掃描檔案並發送工作
+	// 發送工作
 	go func() {
 		defer close(jobs)
 		err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
@@ -152,6 +146,7 @@ func (a *App) Run(ctx context.Context) error {
 				if a.config.IsSupportedFormat(path) {
 					select {
 					case <-ctx.Done():
+						a.logger.LogInfo("", zap.String("收到取消信號，停止發送工作", ""))
 						return ctx.Err()
 					case jobs <- path:
 					}
@@ -175,13 +170,26 @@ func (a *App) Run(ctx context.Context) error {
 	}()
 
 	// 等待所有工作完成
-	wg.Wait()
-	close(results)
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
 
-	// 計算處理時間
-	duration := time.Since(startTime)
+	// 處理結果
+	for err := range results {
+		if err != nil {
+			if err.Error() == "context canceled" {
+				a.logger.LogInfo("程式被取消",
+					zap.String("status", "canceled"),
+				)
+				return fmt.Errorf("程式被取消")
+			}
+			a.logger.LogError("", fmt.Sprintf("處理檔案失敗: %v", err))
+		}
+	}
 
 	// 輸出統計資訊
+	duration := time.Since(startTime)
 	stats := a.stats.GetStats()
 	a.logger.LogInfo("處理完成",
 		zap.Int("total_files", stats.TotalFiles),
@@ -213,6 +221,15 @@ func (a *App) Run(ctx context.Context) error {
 	// 統計每個資料夾的檔案數量
 	if err := directory.PrintDirectoryStats(a.config.DstDir, a.logger); err != nil {
 		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
+	}
+
+	// 檢查是否被取消
+	if ctx.Err() != nil {
+		a.logger.LogInfo("程式被取消",
+			zap.String("status", "canceled"),
+			zap.Error(ctx.Err()),
+		)
+		return fmt.Errorf("程式被取消: %v", ctx.Err())
 	}
 
 	return nil
