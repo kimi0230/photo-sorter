@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main  # 當 main 分支有推送時觸發
+    tags:
+      - 'v*'  # 當推送 v 開頭的標籤時觸發
   workflow_dispatch:  # 允許手動觸發
 
 jobs:
