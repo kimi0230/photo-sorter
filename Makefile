@@ -1,4 +1,4 @@
-.PHONY: build clean run docker-build docker-run version help download_data data
+.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files
 
 # 建置參數
 BINARY_NAME=photo-sorter
@@ -50,6 +50,26 @@ data: download_data
 	-sql "SELECT admin, name_en as name, adm0_a3 FROM ne_10m_admin_1_states_provinces" \
 	geodata/states.geojson ./vsizip/ne_10m_admin_1_states_provinces.shp
 
+# 預設目標
+all: build
+
+# 測試
+test:
+	go test -v ./...
+
+# 程式碼檢查
+lint:
+	golangci-lint run
+
+# 計算檔案數量
+count-files:
+	@if [ -z "$(path)" ]; then \
+		echo "錯誤：請提供目錄路徑"; \
+		echo "使用方式：make count-files path=/path/to/directory"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/count_files.sh
+	@./scripts/count_files.sh "$(path)"
 
 # 顯示幫助資訊
 help:
