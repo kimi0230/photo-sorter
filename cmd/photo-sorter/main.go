@@ -20,7 +20,6 @@ var (
 	srcDir     string
 	dstDir     string
 	workers    int
-	dryRun     bool
 	configPath string
 	showVer    bool
 	cpuProfile string // CPU profile 檔案路徑
@@ -31,7 +30,6 @@ func init() {
 	flag.StringVar(&srcDir, "src", ".", "原始照片資料夾")
 	flag.StringVar(&dstDir, "dst", ".", "整理後儲存的位置")
 	flag.IntVar(&workers, "workers", 4, "最大併發數")
-	flag.BoolVar(&dryRun, "dry-run", false, "僅顯示將搬移的路徑，不實際執行")
 	flag.StringVar(&configPath, "c", "config.yaml", "配置檔案路徑")
 	flag.BoolVar(&showVer, "version", false, "顯示版本資訊")
 	flag.StringVar(&cpuProfile, "cpuprofile", "", "CPU profile 檔案路徑")
@@ -78,7 +76,7 @@ func main() {
 	}
 
 	// 套用命令列參數
-	cfg.ApplyFlags(srcDir, dstDir, workers, dryRun)
+	cfg.ApplyFlags(srcDir, dstDir, workers)
 
 	// 建立日誌記錄器
 	logger, err := logger.NewLogger(cfg.LogLevel)

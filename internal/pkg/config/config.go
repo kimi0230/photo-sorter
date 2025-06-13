@@ -67,7 +67,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-func (c *Config) ApplyFlags(srcDir, dstDir string, workers int, dryRun bool) {
+func (c *Config) ApplyFlags(srcDir, dstDir string, workers int) {
 	// 如果命令列有指定參數，則覆蓋設定檔的值
 	if srcDir != "." {
 		c.SrcDir = srcDir
@@ -77,9 +77,6 @@ func (c *Config) ApplyFlags(srcDir, dstDir string, workers int, dryRun bool) {
 	}
 	if workers != 4 {
 		c.Workers = workers
-	}
-	if dryRun {
-		c.DryRun = true
 	}
 }
 

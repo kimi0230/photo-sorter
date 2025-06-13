@@ -31,10 +31,10 @@ func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- erro
 			err := file.ProcessFile(path, cfg, logger)
 			if err != nil {
 				logger.LogError(path, fmt.Sprintf("Worker %d 處理失敗: %v", id, err))
-				stats.IncrementFailure()
+				// stats.IncrementFailure()
 			} else {
 				logger.LogDebug(fmt.Sprintf("Worker %d 處理成功: %s", id, path))
-				stats.IncrementSuccess()
+				// stats.IncrementSuccess()
 			}
 			results <- err
 		}

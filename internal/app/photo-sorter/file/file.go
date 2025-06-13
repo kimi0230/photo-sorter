@@ -28,7 +28,7 @@ func ProcessFile(path string, cfg *config.Config, logger *logger.Logger) error {
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("將移動: %s -> %s\n", path, targetPath)
+		fmt.Printf("DryRun: 將移動: %s -> %s\n", path, targetPath)
 		return nil
 	}
 
@@ -80,8 +80,7 @@ func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logge
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("將移動不支援的檔案: %s -> %s\n", path, targetPath)
-		logger.LogError(path, fmt.Sprintf("將移動不支援的檔案: %s -> %s", path, targetPath))
+		fmt.Printf("DryRun: 將移動不支援的檔案: %s -> %s\n", path, targetPath)
 		return nil
 	}
 

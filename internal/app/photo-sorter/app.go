@@ -101,7 +101,7 @@ func (a *App) Run(ctx context.Context) error {
 	a.stats.SetTotalFiles(totalFiles)
 
 	// 啟動工作池
-	fmt.Printf("Workers 數量: %d，需處理總檔案數: %d\n", a.config.Workers, totalFiles)
+	fmt.Printf("Workers 數量: %d，需處理總檔案數: %d，忽略的檔案數: %d\n", a.config.Workers, totalFiles, a.stats.IgnoredCount)
 	a.logger.LogInfo("Start Workers",
 		zap.Int("workers", a.config.Workers),
 		zap.Int("total_files", totalFiles),
@@ -185,14 +185,12 @@ func (a *App) Run(ctx context.Context) error {
 		zap.Int("total_files", stats.TotalFiles),
 		zap.Int("success_count", stats.SuccessCount),
 		zap.Int("failure_count", stats.FailureCount),
-		zap.Int("ignored_count", stats.IgnoredCount),
 		zap.Duration("duration", duration),
 	)
 	fmt.Printf("\n========== 處理完成 ==========\n")
 	fmt.Printf("總檔案數: %d\n", stats.TotalFiles)
 	fmt.Printf("成功處理: %d\n", stats.SuccessCount)
 	fmt.Printf("處理失敗: %d\n", stats.FailureCount)
-	fmt.Printf("忽略的檔案: %d\n", stats.IgnoredCount)
 	fmt.Printf("處理時間: %v\n", duration)
 	fmt.Printf("\n========== 處理完成 ==========\n")
 

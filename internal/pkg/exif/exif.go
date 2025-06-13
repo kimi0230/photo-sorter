@@ -128,13 +128,17 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
 				if err == nil && countryCity != nil {
 					// 為檔案添加標籤
-					fileTagger, err := tagger.NewTagger()
-					if err != nil {
-						return "", fmt.Errorf("建立標籤實例失敗: %v", err)
-					}
-					tagName := fmt.Sprintf("%s-%s", countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
-					if err := fileTagger.AddTag(path, tagName); err != nil {
-						fmt.Printf("為檔案添加標籤失敗: %v\n", err)
+					if !cfg.DryRun {
+						fileTagger, err := tagger.NewTagger()
+						if err != nil {
+							return "", fmt.Errorf("建立標籤實例失敗: %v", err)
+						}
+						tagName := fmt.Sprintf("%s-%s", countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
+						if err := fileTagger.AddTag(path, tagName); err != nil {
+							fmt.Printf("為檔案添加標籤失敗: %v\n", err)
+						}
+					} else {
+						fmt.Printf("DryRun: 為檔案添加標籤: %s\n", path)
 					}
 					date = fmt.Sprintf("%s-%s-%s", date, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
 				}
