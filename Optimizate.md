@@ -1,8 +1,4 @@
-好的，讓我們來搜尋可能導致大量記憶體操作的地方：
-
-
-Search files...
-根據搜尋結果，我發現主要的記憶體操作來自以下幾個地方：
+主要的記憶體操作來自以下幾個地方：
 
 1. `internal/app/photo-sorter/app.go` 中的 `copyFile` 函數：
 ```go
@@ -21,7 +17,7 @@ func (a *App) copyFile(src, dst string) error {
 }
 ```
 
-2. `internal/pkg/geocoding/geo_state.go` 中的 `loadGeoJSON` 函數：
+1. `internal/pkg/geocoding/geo_state.go` 中的 `loadGeoJSON` 函數：
 ```go
 func (g *GeoState) loadGeoJSON() error {
     jsonFile, err := os.Open(g.jsonPath)
@@ -82,8 +78,6 @@ func (a *App) copyFile(src, dst string) error {
    - 使用記憶體映射（mmap）
    - 實作資料分頁載入
    - 使用資料庫儲存（如 SQLite）
-
-您要我幫您實作這些優化嗎？
 
 
 ---

@@ -94,7 +94,7 @@ sorted_media/
 
 ## 錯誤處理
 
-- 無法處理的檔案會記錄在 error.log
+- 日誌檔案會記錄在 logs/app.log
 - 缺少日期資訊的檔案會被歸類到 unknown_date 資料夾
 - 缺少裝置資訊的檔案會被歸類到 unknown_device 資料夾
 - 不支援的檔案格式會被歸類到 unknown_format 資料夾

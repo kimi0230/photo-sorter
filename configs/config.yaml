@@ -47,3 +47,4 @@ ignore:
   - ".yaml"
   - ".sample"
   - ".DS_Store"
+  - "Thumbs.db"

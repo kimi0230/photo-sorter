@@ -1,7 +1,6 @@
 
 
 # TODO 優化
-你的 `geocoding` 套件目前設計良好，邏輯清晰、功能正確。但若你想進一步優化效能、結構與可讀性，我會建議以下幾點：
 
 ---
 
@@ -121,4 +120,5 @@ func (g *GeoState) GetLocationFromGPS(lat, lon float64) (*CountryCity, error) {
 | 支援多語系欄位        | ✅ 若輸出顯示有需求        |
 | 建立座標快取（可選）  | ✅ 若查詢點經常重複        |
 
-如果你願意，我可以幫你進一步重構 `loadGeoJSON` 為「預解析」版本。是否要我幫你實作？
+---
+# 替換成 **SpatiaLite**
