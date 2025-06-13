@@ -67,7 +67,7 @@ func (a *App) Run(ctx context.Context) error {
 	results := make(chan error, 100)
 
 	// 先計算總檔案數
-	totalFiles := 0
+	totalFiles, ignoredFiles := 0, 0
 	err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -85,7 +85,8 @@ func (a *App) Run(ctx context.Context) error {
 		if !info.IsDir() {
 			// 檢查是否要忽略此檔案
 			if a.config.ShouldIgnore(path) {
-				a.stats.IncrementIgnoredExt(filepath.Ext(path))
+				a.logger.LogInfo(path, zap.String("忽略的檔案", filepath.Ext(path)))
+				ignoredFiles++
 				return nil
 			}
 			totalFiles++
@@ -101,7 +102,7 @@ func (a *App) Run(ctx context.Context) error {
 	a.stats.SetTotalFiles(totalFiles)
 
 	// 啟動工作池
-	fmt.Printf("Workers 數量: %d，需處理總檔案數: %d，忽略的檔案數: %d\n", a.config.Workers, totalFiles, a.stats.IgnoredCount)
+	fmt.Printf("Workers 數量: %d，需處理總檔案數: %d，忽略的檔案數: %d\n", a.config.Workers, totalFiles, ignoredFiles)
 	a.logger.LogInfo("Start Workers",
 		zap.Int("workers", a.config.Workers),
 		zap.Int("total_files", totalFiles),
@@ -117,9 +118,9 @@ func (a *App) Run(ctx context.Context) error {
 	go func() {
 		for err := range results {
 			if err != nil {
-				a.stats.IncrementFailure()
+				a.logger.LogError(err.Error(), fmt.Sprintf("處理失敗 %s", err.Error()))
 			} else {
-				a.stats.IncrementSuccess()
+				a.logger.LogDebug("處理成功")
 			}
 		}
 	}()
@@ -161,6 +162,7 @@ func (a *App) Run(ctx context.Context) error {
 						a.logger.LogError(path, fmt.Sprintf("處理不支援的檔案失敗: %v", err))
 						a.stats.IncrementFailure()
 					} else {
+						a.logger.LogDebug(path, zap.String("處理不支援的檔案成功", filepath.Ext(path)))
 						a.stats.IncrementSuccess()
 					}
 				}
