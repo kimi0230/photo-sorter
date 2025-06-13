@@ -8,6 +8,9 @@ on:
       - 'v*'  # 當推送 v 開頭的標籤時觸發
   workflow_dispatch:  # 允許手動觸發
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
