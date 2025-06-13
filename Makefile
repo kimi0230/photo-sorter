@@ -1,4 +1,4 @@
-.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify
+.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify
 
 # 建置參數
 BINARY_NAME=photo-sorter
@@ -80,6 +80,13 @@ verify:
 	fi
 	@chmod +x scripts/verify.sh
 	@./scripts/verify.sh "$(source)" "$(target)"
+
+verify-bin: build-verify
+	./bin/verify -source "$(source)" -target "$(target)"
+
+# 編譯 verify 工具
+build-verify:
+	go build -o bin/verify cmd/verify/main.go
 
 # 顯示幫助資訊
 help:
