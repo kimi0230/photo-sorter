@@ -1,13 +1,10 @@
-name: Release
+name: Build
 
 on:
   push:
-    tags:
-      - 'v*'  # 當推送 v 開頭的標籤時觸發
-
-# 添加權限設定
-permissions:
-  contents: write  # 允許寫入內容（建立 Release）
+    branches:
+      - main  # 當 main 分支有推送時觸發
+  workflow_dispatch:  # 允許手動觸發
 
 jobs:
   build:
@@ -30,11 +27,22 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Get version from tag
+      - name: Get version from config
         id: get_version
         run: |
-          # 從標籤獲取版本號
-          VERSION=${GITHUB_REF#refs/tags/}
+          # 使用 yq 來讀取 YAML 檔案中的版本號
+          if command -v yq &> /dev/null; then
+            VERSION=$(yq eval '.version' configs/config.yaml)
+          else
+            # 如果沒有 yq，使用 grep 和 sed 來提取版本號
+            VERSION=$(grep '^version:' configs/config.yaml | sed 's/version: *//')
+          fi
+          
+          # 如果版本號為空，使用 git describe
+          if [ -z "$VERSION" ]; then
+            VERSION=$(git describe --tags --always --dirty)
+          fi
+          
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -78,24 +86,24 @@ jobs:
           name: photo-sorter-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}
           path: |
             photo-sorter-${{ env.VERSION }}-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}.tar.gz
-            photo-sorter-${{ env.VERSION }}-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}.zip
-
+            photo-sorter-${{ env.VERSION }}-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-${{ matrix.arch }}.zip 
   create-release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+      needs: build
+      runs-on: ubuntu-latest
+      if: github.ref_type == 'tag'
+      steps:
+        - name: Download all artifacts
+          uses: actions/download-artifact@v4
+          with:
+            path: artifacts
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/photo-sorter-linux-amd64/photo-sorter-*-linux-amd64.tar.gz
-            artifacts/photo-sorter-darwin-amd64/photo-sorter-*-darwin-amd64.zip
-            artifacts/photo-sorter-darwin-arm64/photo-sorter-*-darwin-arm64.zip
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        - name: Create Release
+          uses: softprops/action-gh-release@v2
+          with:
+            files: |
+              artifacts/photo-sorter-linux-amd64/photo-sorter-*-linux-amd64.tar.gz
+              artifacts/photo-sorter-darwin-amd64/photo-sorter-*-darwin-amd64.zip
+              artifacts/photo-sorter-darwin-arm64/photo-sorter-*-darwin-arm64.zip
+            generate_release_notes: true
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
