@@ -18,3 +18,6 @@ file_count=$(find "$1" -type f | wc -l)
 
 # 輸出結果
 echo "目錄 '$1' 中的檔案數量：$file_count" 
+
+file_count_no_dot=$(find "$1" -type f -not -name "._*" | wc -l)
+echo "目錄 '$1' 中的檔案數量（不包含 ._ 開頭的檔案）：$file_count_no_dot"
