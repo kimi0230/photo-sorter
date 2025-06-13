@@ -75,7 +75,7 @@ func (c *Config) ApplyFlags(srcDir, dstDir string, workers int) {
 	if dstDir != "." {
 		c.DstDir = dstDir
 	}
-	if workers != 4 {
+	if workers > 0 {
 		c.Workers = workers
 	}
 }

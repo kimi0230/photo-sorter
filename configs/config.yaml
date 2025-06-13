@@ -8,9 +8,6 @@ src_dir: "source_media"
 # 整理後儲存的位置
 dst_dir: ""
 
-# 最大併發處理數量
-workers: 4
-
 # 是否為乾跑模式（只顯示將要移動的檔案，不實際執行）
 dry_run: false
 

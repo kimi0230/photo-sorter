@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/pprof"
 	"syscall"
 
@@ -29,7 +30,7 @@ var (
 func init() {
 	flag.StringVar(&srcDir, "src", ".", "原始照片資料夾")
 	flag.StringVar(&dstDir, "dst", ".", "整理後儲存的位置")
-	flag.IntVar(&workers, "workers", 4, "最大併發數")
+	flag.IntVar(&workers, "workers", runtime.NumCPU(), "最大併發數")
 	flag.StringVar(&configPath, "c", "config.yaml", "配置檔案路徑")
 	flag.BoolVar(&showVer, "version", false, "顯示版本資訊")
 	flag.StringVar(&cpuProfile, "cpuprofile", "", "CPU profile 檔案路徑")

@@ -12,8 +12,8 @@
                 "${workspaceFolder}/source_media",
                 // "-dst",
                 // "${workspaceFolder}/sorted_media",
-                "-workers",
-                "4",
+                // "-workers",
+                // "4",
                 "-c",
                 "${workspaceFolder}/configs/config.yaml"
             ],
