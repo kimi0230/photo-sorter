@@ -37,6 +37,19 @@ formats:
   - ".png"
   - ".mp4"
   - ".mov" 
+  - ".gif"
+  - ".webp"
+  - ".heif"
+  - ".hevc"
+  - ".heif"
+  - ".hevc"
+  - ".mkv"
+  - ".avi"
+  - ".wmv"
+  - ".flv"
+  - ".mpeg"
+  - ".mpg"
+  - ".m4v"
   
 # 要忽略的檔案類型
 ignore:
