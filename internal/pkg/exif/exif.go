@@ -102,9 +102,11 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 		// 解析日期字串並使用設定檔中的格式
 		t, err := time.Parse("2006:01:02 15:04:05", date)
 		if err != nil {
-			return "", fmt.Errorf("解析日期失敗: %v", err)
+			date = "unknown_date"
+			fmt.Printf("解析日期失敗: %v", err)
+		} else {
+			date = t.Format(cfg.DateFormat)
 		}
-		date = t.Format(cfg.DateFormat)
 	}
 
 	// 如果有啟用地理位置標籤且有 GPS 資訊，則加入地理位置

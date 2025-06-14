@@ -12,6 +12,8 @@ import (
 	"photo-sorter/internal/pkg/geocoding"
 	"photo-sorter/internal/pkg/logger"
 	"photo-sorter/internal/pkg/tagger"
+
+	"go.uber.org/zap"
 )
 
 // ProcessFile 處理單個檔案
@@ -26,8 +28,8 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	// 取得 EXIF 資料
 	exifData, err := exif.GetExifData(path)
 	if err != nil {
-		logger.LogError(path, fmt.Sprintf("取得 EXIF 資料失敗: %v", err))
-		return fmt.Errorf("取得 EXIF 資料失敗: %v", err)
+		logger.LogInfo(path, zap.String("取得 EXIF 資料失敗", "將檔案移動到失敗資料夾"))
+		return HandelFailedFolder(path, cfg, logger)
 	}
 
 	// 檢查 context 是否已取消
@@ -145,4 +147,36 @@ func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logge
 	}
 
 	return CopyFile(path, targetPath)
+}
+
+// HandelFailedFolder 將檔案移動到失敗資料夾
+func HandelFailedFolder(path string, cfg *config.Config, logger *logger.Logger) error {
+	// 建立失敗資料夾
+	failDir := filepath.Join(cfg.DstDir, "failed_files")
+
+	if err := os.MkdirAll(failDir, 0755); err != nil {
+		logger.LogError(path, fmt.Sprintf("建立 failed_files 資料夾失敗: %v", err))
+		return err
+	}
+
+	// 如果目標檔案已存在，添加時間戳記
+	baseName := filepath.Base(path)
+	targetPath := filepath.Join(failDir, baseName)
+	counter := 1
+	ext := filepath.Ext(baseName)
+	nameWithoutExt := strings.TrimSuffix(baseName, ext)
+	for {
+		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+			break
+		}
+		targetPath = filepath.Join(failDir, fmt.Sprintf("%s_%d%s", nameWithoutExt, counter, ext))
+		counter++
+	}
+
+	if cfg.DryRun {
+		fmt.Printf("DryRun: 將移動失敗的檔案: %s -> %s\n", path, targetPath)
+		return nil
+	}
+	return CopyFile(path, targetPath)
+
 }
