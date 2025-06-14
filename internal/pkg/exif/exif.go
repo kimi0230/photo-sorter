@@ -103,7 +103,6 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 		t, err := time.Parse("2006:01:02 15:04:05", date)
 		if err != nil {
 			date = "unknown_date"
-			fmt.Printf("解析日期失敗: %v", err)
 		} else {
 			date = t.Format(cfg.DateFormat)
 		}
