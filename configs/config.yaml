@@ -50,6 +50,7 @@ formats:
   - ".mpeg"
   - ".mpg"
   - ".m4v"
+  - ".bmp"
   
 # 要忽略的檔案類型
 ignore:
