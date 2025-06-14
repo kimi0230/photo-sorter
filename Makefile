@@ -50,6 +50,12 @@ data: download_data
 	-sql "SELECT admin, name_en as name, adm0_a3 FROM ne_10m_admin_1_states_provinces" \
 	geodata/states.geojson ./vsizip/ne_10m_admin_1_states_provinces.shp
 
+data-sqlite:
+	rm -rf geodata/states.sqlite
+	unzip -o ./vsizip/ne_10m_admin_1_states_provinces.zip -d ./vsizip
+	ogr2ogr -f SQLite -dsco SPATIALITE=YES -nlt PROMOTE_TO_MULTI geodata/states.sqlite ./vsizip/ne_10m_admin_1_states_provinces.shp
+
+
 # 預設目標
 all: build
 
