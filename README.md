@@ -36,8 +36,19 @@ docker build -t photo-sorter .
 
 ### 基本使用
 
-```bash
-./photo-sorter -config config.yaml
+**建議先關閉 Spotlight 在執行檔案!!!**
+
+```sh
+# 暫停 Spotlight：
+sudo mdutil -i off /
+
+# 執行
+./photo-sorter -src {/PAHT/NEED_SORT_FOLDER}
+
+# 完成後，重建 Spotlight index：
+sudo mdutil -E /
+sudo mdutil -i on /
+
 ```
 
 ### 配置檔案說明
