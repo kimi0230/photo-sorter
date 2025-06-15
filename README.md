@@ -32,6 +32,27 @@ make build
 docker build -t photo-sorter .
 ```
 
+### exiftool
+```sh
+brew install exiftool
+```
+
+### gpmf-parser
+
+https://github.com/gopro/gpmf-parser/tree/main
+
+```sh
+git submodule add https://github.com/gopro/gpmf-parser.git third_party/gpmf-parser
+git submodule update --init --recursive
+
+cd third_party/gpmf-parser
+mkdir build
+cd build
+cmake ..
+make
+chmod +x gpmf-parser
+```
+
 ## 使用方法
 
 ### 基本使用

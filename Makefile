@@ -1,4 +1,4 @@
-.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify
+.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify build-gpmf
 
 # 建置參數
 BINARY_NAME=photo-sorter
@@ -93,6 +93,25 @@ verify-bin: build-verify
 # 編譯 verify 工具
 build-verify:
 	go build -o bin/verify cmd/verify/main.go
+
+# 定義變數
+GPMF_DIR := third_party/gpmf-parser
+GPMF_BUILD_DIR := $(GPMF_DIR)/build
+TOOLS_BIN_DIR := tools/bin
+GPMF_PARSER := gpmf-parser
+
+build-gpmf:
+	@echo "Building gpmf-parser..."
+	@mkdir -p $(TOOLS_BIN_DIR)
+	@cd $(GPMF_DIR) && \
+		mkdir -p build && \
+		cd build && \
+		cmake .. && \
+		make && \
+		chmod +x $(GPMF_PARSER) && \
+		cp $(GPMF_PARSER) ../../../$(TOOLS_BIN_DIR)/$(GPMF_PARSER)
+	@rm -rf $(GPMF_BUILD_DIR)
+	@echo "gpmf-parser build completed."
 
 # 顯示幫助資訊
 help:
