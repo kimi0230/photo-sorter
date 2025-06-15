@@ -1,4 +1,4 @@
-version: "0.1.14"  # 版本號
+version: "0.1.15"  # 版本號
 
 # 照片分類工具設定檔
 
@@ -41,8 +41,6 @@ formats:
   - ".webp"
   - ".heif"
   - ".hevc"
-  - ".heif"
-  - ".hevc"
   - ".mkv"
   - ".avi"
   - ".wmv"
@@ -51,6 +49,18 @@ formats:
   - ".mpg"
   - ".m4v"
   - ".bmp"
+  - ".cr2"
+  - ".cr3"
+  - ".nef"
+  - ".nrw"
+  - ".arw"
+  - ".raf"
+  - ".rw2"
+  - ".orf"
+  - ".pef"
+  - ".dng"
+  - ".rwl"
+  - ".raw"
   
 # 要忽略的檔案類型
 ignore:
