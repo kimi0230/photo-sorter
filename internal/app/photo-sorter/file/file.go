@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,21 +104,6 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	return nil
 }
 
-// CopyFile 複製檔案
-func CopyFile(src, dst string) error {
-	input, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(dst, input, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // HandleUnsupportedFile 處理不支援的檔案
 func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logger) error {
 	// 建立 unknown_format 資料夾
@@ -179,4 +165,85 @@ func HandelFailedFolder(path string, cfg *config.Config, logger *logger.Logger) 
 	}
 	return CopyFile(path, targetPath)
 
+}
+
+// CopyFileWithBuffer 使用 buffer 複製檔案（適合大檔案）
+func CopyFileWithBuffer(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	// 取得檔案大小
+	fileInfo, err := source.Stat()
+	if err != nil {
+		return err
+	}
+	fileSize := fileInfo.Size()
+
+	// 根據檔案大小決定 buffer 大小
+	var bufferSize int
+	switch {
+	case fileSize < 1024*1024: // 小於 1MB
+		bufferSize = 32 * 1024 // 32KB
+	case fileSize < 10*1024*1024: // 1MB 到 10MB
+		bufferSize = 256 * 1024 // 256KB
+	case fileSize < 100*1024*1024: // 10MB 到 100MB
+		bufferSize = 1024 * 1024 // 1MB
+	default: // 大於 100MB
+		bufferSize = 4 * 1024 * 1024 // 4MB
+	}
+
+	buffer := make([]byte, bufferSize)
+	for {
+		n, err := source.Read(buffer)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if n == 0 {
+			break
+		}
+		if _, err := destination.Write(buffer[:n]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CopyFileDirect 直接複製檔案（適合小檔案）
+func CopyFileDirect(src, dst string) error {
+	input, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(dst, input, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CopyFile 智能選擇的檔案複製函數
+func CopyFile(src, dst string) error {
+	fileInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	// 大檔案使用 Buffer 版本
+	if fileInfo.Size() > 100*1024*1024 {
+		return CopyFileWithBuffer(src, dst)
+	}
+
+	// 小檔案使用直接複製版本
+	return CopyFileDirect(src, dst)
 }

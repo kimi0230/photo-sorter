@@ -72,6 +72,7 @@ func ParseGPSString(gpsStr string) (float64, error) {
 }
 
 func GetExifData(path string) (*ExifData, error) {
+	startTime := time.Now()
 	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-Model", "-GPSLatitude", "-GPSLongitude", path)
 	output, err := cmd.Output()
 	if err != nil {
@@ -85,6 +86,12 @@ func GetExifData(path string) (*ExifData, error) {
 
 	if len(data) == 0 {
 		return nil, fmt.Errorf("無法取得檔案資訊")
+	}
+
+	// 記錄執行時間
+	executionTime := time.Since(startTime)
+	if executionTime > 1*time.Second {
+		fmt.Printf("警告: exiftool 處理檔案 %s 耗時 %.2f 秒\n", path, executionTime.Seconds())
 	}
 
 	return &data[0], nil
