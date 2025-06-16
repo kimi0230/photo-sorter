@@ -1,4 +1,4 @@
-package exif
+package metadata
 
 import (
 	"encoding/json"
@@ -73,7 +73,7 @@ func ParseGPSString(gpsStr string) (float64, error) {
 
 func GetExifData(path string) (*ExifData, error) {
 	startTime := time.Now()
-	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-Model", "-GPSLatitude", "-GPSLongitude", path)
+	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-Model", "-GPSLatitude", "-GPSLongitude", "-ee", path)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("執行 exiftool 失敗: %v", err)
@@ -90,11 +90,38 @@ func GetExifData(path string) (*ExifData, error) {
 
 	// 記錄執行時間
 	executionTime := time.Since(startTime)
-	if executionTime > 1*time.Second {
+	if executionTime > 3*time.Second {
 		fmt.Printf("警告: exiftool 處理檔案 %s 耗時 %.2f 秒\n", path, executionTime.Seconds())
 	}
 
 	return &data[0], nil
+}
+
+// sanitizeDeviceName 清理並標準化裝置名稱
+func sanitizeDeviceName(name string) string {
+	// 移除所有非英文字母、數字和底線的字元
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return -1
+	}, name)
+}
+
+// getDeviceName 取得標準化的裝置名稱
+func getDeviceName(model string) string {
+	if model == "" {
+		return "unknown_device"
+	}
+
+	// 處理 DJI 機型名稱
+	if deviceDJI, ok := GetDJIModelFriendlyName(model); ok {
+		return deviceDJI
+	}
+
+	// 處理一般裝置名稱
+	device := strings.ReplaceAll(model, " ", "_")
+	return sanitizeDeviceName(device)
 }
 
 func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, error) {
@@ -141,19 +168,7 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 	}
 
 	// 取得裝置名稱
-	device := exif.Model
-	if device == "" {
-		device = "unknown_device"
-	} else {
-		// 處理裝置名稱
-		device = strings.ReplaceAll(device, " ", "_")
-		device = strings.Map(func(r rune) rune {
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
-				return r
-			}
-			return -1
-		}, device)
-	}
+	device := getDeviceName(exif.Model)
 
 	// 建立目標路徑
 	targetDir := filepath.Join(cfg.DstDir, date, device)

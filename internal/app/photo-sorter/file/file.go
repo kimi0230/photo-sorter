@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"photo-sorter/internal/pkg/config"
-	"photo-sorter/internal/pkg/exif"
 	"photo-sorter/internal/pkg/geocoding"
 	"photo-sorter/internal/pkg/logger"
+	"photo-sorter/internal/pkg/metadata"
 	"photo-sorter/internal/pkg/tagger"
 
 	"go.uber.org/zap"
@@ -27,7 +27,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	}
 
 	// 取得 EXIF 資料
-	exifData, err := exif.GetExifData(path)
+	exifData, err := metadata.GetExifData(path)
 	if err != nil {
 		logger.LogInfo(path, zap.String("取得 EXIF 資料失敗", "將檔案移動到失敗資料夾"))
 		return HandelFailedFolder(path, cfg, logger)
@@ -41,7 +41,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	}
 
 	// 取得目標路徑
-	targetPath, err := exif.GetTargetPath(path, exifData, cfg)
+	targetPath, err := metadata.GetTargetPath(path, exifData, cfg)
 	if err != nil {
 		logger.LogError(path, fmt.Sprintf("取得目標路徑失敗: %v", err))
 		return fmt.Errorf("取得目標路徑失敗: %v", err)
@@ -67,12 +67,12 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 
 	// 如果有啟用地理位置標籤且有 GPS 資訊，則為目標檔案添加標籤
 	if cfg.EnableGeoTag && exifData.GPSLatitude != "" && exifData.GPSLongitude != "" {
-		lat, err := exif.ParseGPSString(exifData.GPSLatitude)
+		lat, err := metadata.ParseGPSString(exifData.GPSLatitude)
 		if err != nil {
 			return fmt.Errorf("解析緯度失敗: %v", err)
 		}
 
-		lon, err := exif.ParseGPSString(exifData.GPSLongitude)
+		lon, err := metadata.ParseGPSString(exifData.GPSLongitude)
 		if err != nil {
 			return fmt.Errorf("解析經度失敗: %v", err)
 		}
