@@ -1,4 +1,4 @@
-.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify
+.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify build-gpmf clean-gpmf
 
 # 建置參數
 BINARY_NAME=photo-sorter
@@ -94,15 +94,66 @@ verify-bin: build-verify
 build-verify:
 	go build -o bin/verify cmd/verify/main.go
 
+# 定義變數
+GPMF_DIR := third_party/gpmf-parser
+GPMF_BUILD_DIR := $(GPMF_DIR)/build
+TOOLS_BIN_DIR := tools/bin
+GPMF_PARSER := gpmf-parser
+
+# 確保目錄存在
+$(TOOLS_BIN_DIR):
+	@mkdir -p $@
+
+# 清理 build 目錄
+clean-gpmf:
+	@echo "Cleaning gpmf-parser build directory..."
+	@rm -rf $(GPMF_BUILD_DIR)
+
+# 編譯 gpmf-parser
+build-gpmf: $(TOOLS_BIN_DIR) clean-gpmf
+	@echo "Building gpmf-parser..."
+	@cd $(GPMF_DIR) && \
+		mkdir -p build && \
+		cd build && \
+		cmake .. && \
+		make && \
+		chmod +x $(GPMF_PARSER) && \
+		cp $(GPMF_PARSER) ../../../$(TOOLS_BIN_DIR)/$(GPMF_PARSER)
+	@echo "gpmf-parser build completed."
+
 # 顯示幫助資訊
 help:
 	@echo "可用的目標："
+	@echo "基本操作："
 	@echo "  build        - 建置應用程式"
 	@echo "  clean        - 清理建置檔案"
 	@echo "  run          - 建置並執行應用程式"
 	@echo "  version      - 顯示版本資訊"
+	@echo ""
+	@echo "Docker 相關："
 	@echo "  docker-build - 建置 Docker 映像"
 	@echo "  docker-run   - 執行 Docker 容器"
+	@echo ""
+	@echo "資料處理："
+	@echo "  download_data - 下載地理資料"
+	@echo "  data         - 處理地理資料（GeoJSON）"
+	@echo "  data-sqlite  - 處理地理資料（SQLite）"
+	@echo ""
+	@echo "工具："
 	@echo "  count-files  - 計算目錄中的檔案數量"
+	@echo "                使用方式：make count-files path=/path/to/directory"
 	@echo "  verify       - 比對兩個目錄的檔案差異"
+	@echo "                使用方式：make verify source=/path/to/source target=/path/to/target"
+	@echo "  verify-bin   - 使用二進制工具比對目錄"
+	@echo "                使用方式：make verify-bin source=/path/to/source target=/path/to/target"
+	@echo ""
+	@echo "開發工具："
+	@echo "  test         - 執行所有測試"
+	@echo "  lint         - 執行程式碼檢查"
+	@echo ""
+	@echo "gpmf-parser 相關："
+	@echo "  build-gpmf   - 建置 gpmf-parser"
+	@echo "  clean-gpmf   - 清理 gpmf-parser 建置目錄"
+	@echo ""
+	@echo "其他："
 	@echo "  help         - 顯示此幫助資訊"
