@@ -1,4 +1,4 @@
-version: "0.1.16"  # 版本號
+version: "0.1.17"  # 版本號
 
 # 照片分類工具設定檔
 
@@ -21,7 +21,7 @@ enable_geo_tag: true
 geo_json_path: "./geodata/states.geojson"
 
 # 地理編碼器類型
-geocoder_type: "geo_state"
+geocoder_type: "geo_state_json"
 
 # 日誌等級設定 (debug, info, warn, error)
 log_level: "info"

@@ -2,9 +2,9 @@ package metadata
 
 // DJIModelMap 是 DJI 機型代號對應友善名稱
 var DJIModelMap = map[string]string{
-	"AC002":  "DJI_OsmoAction_3",
-	"AC003":  "DJI_OsmoAction_4",
-	"AC004":  "DJI_OsmoAction_5_Pro",
+	"AC002":  "DJI_OsmoAction3",
+	"AC003":  "DJI_OsmoAction4",
+	"AC004":  "DJI_OsmoAction5_Pro",
 	"OT-210": "DJI_POCKET_2",
 }
 

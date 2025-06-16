@@ -18,8 +18,8 @@ type GeoState struct {
 	collection *GeoJSONCollection
 }
 
-// NewGeoState 建立一個新的 GeoState 實例
-func NewGeoState(jsonPath string) (*GeoState, error) {
+// NewGeoStateJson 建立一個新的 GeoState 實例
+func NewGeoStateJson(jsonPath string) (*GeoState, error) {
 	gs := &GeoState{
 		jsonPath: jsonPath,
 	}
