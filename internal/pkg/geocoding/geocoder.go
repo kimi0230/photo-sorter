@@ -20,6 +20,7 @@ const (
 	// GeoStateType 使用 GeoJSON 檔案的地理編碼器
 	GeoStateType GeocoderType = "geo_state_json"
 	// 可以在這裡添加其他類型
+	GeoTypeSpatialite = "geo_state_spatialite"
 )
 
 // NewGeocoder 建立一個新的 Geocoder 實例
@@ -33,6 +34,12 @@ func NewGeocoder(geocoderType GeocoderType, options map[string]interface{}) (Geo
 			return nil, errors.New("json_path is required for GeoAlpha3JSON type")
 		}
 		return NewGeoStateJson(jsonPath)
+	case GeoTypeSpatialite:
+		dbPath, ok := options["db_path"].(string)
+		if !ok {
+			return nil, errors.New("db_path is required for GeoAlpha3Spatialite type")
+		}
+		return NewGeoSpatialite(dbPath)
 	default:
 		return nil, errors.New("unsupported geocoder type")
 	}

@@ -32,9 +32,22 @@ make build
 docker build -t photo-sorter .
 ```
 
+### spatialite-tools
+
+```sh
+brew install spatialite-tools
+
+which spatialite
+```
+
 ### exiftool
 ```sh
 brew install exiftool
+```
+
+### tag
+```sh
+brew install tag
 ```
 
 ### gpmf-parser
