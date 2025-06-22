@@ -14,7 +14,7 @@ func queryLocation(dbPath string, lon, lat float64) (string, error) {
 
 	// 建立 spatialite 查詢語句
 	sql := fmt.Sprintf(`
-	SELECT name, admin, adm0_a3 FROM ne_10m_admin_1_states_provinces
+	SELECT name, admin, adm0_a3,name_en FROM ne_10m_admin_1_states_provinces
 	WHERE ST_Contains(
 		GEOMETRY,
 		ST_PointFromText('%s', 4326)
