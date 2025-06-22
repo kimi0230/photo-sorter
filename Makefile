@@ -43,6 +43,7 @@ docker-run:
 download_data:
 	if [ ! -f ./vsizip/ne_10m_admin_1_states_provinces.zip ]; then curl -L -o ./vsizip/ne_10m_admin_1_states_provinces.zip https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_1_states_provinces.zip; fi
 
+# 轉換為 GeoJSON 檔案
 data: download_data
 	rm -rf geodata/states.geojson
 	unzip -o ./vsizip/ne_10m_admin_1_states_provinces.zip -d ./vsizip
@@ -50,7 +51,8 @@ data: download_data
 	-sql "SELECT admin, name_en as name, adm0_a3 FROM ne_10m_admin_1_states_provinces" \
 	geodata/states.geojson ./vsizip/ne_10m_admin_1_states_provinces.shp
 
-data-sqlite:
+# 轉換為 SQLite 資料庫
+data-sqlite: download_data
 	rm -rf geodata/states.sqlite
 	unzip -o ./vsizip/ne_10m_admin_1_states_provinces.zip -d ./vsizip
 	ogr2ogr -f SQLite -dsco SPATIALITE=YES -nlt PROMOTE_TO_MULTI geodata/states.sqlite ./vsizip/ne_10m_admin_1_states_provinces.shp

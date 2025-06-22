@@ -271,6 +271,204 @@ PRAGMA table_info(ne_10m_admin_1_states_provinces);
 122|GEOMETRY|MULTIPOLYGON|0||0
 ```
 
+## 直接使用 Spatialite 查詢
+
+除了使用 Go 工具外，您也可以直接使用 Spatialite 命令行工具來查詢 `states.sqlite` 數據庫。
+
+### 安裝 Spatialite
+
+#### macOS
+```bash
+# 使用 Homebrew 安裝
+brew install spatialite-tools
+
+# 或使用 MacPorts
+sudo port install spatialite-tools
+```
+
+#### Ubuntu/Debian
+```bash
+sudo apt-get install spatialite-bin
+```
+
+#### CentOS/RHEL
+```bash
+sudo yum install spatialite-tools
+```
+
+### 基本查詢範例
+
+#### 1. 啟動 Spatialite 並連接數據庫
+```bash
+spatialite states.sqlite
+```
+
+#### 2. 查看表結構
+```sql
+-- 查看所有表
+.tables
+
+-- 查看表結構
+.schema ne_10m_admin_1_states_provinces
+
+-- 查看表的詳細信息
+PRAGMA table_info(ne_10m_admin_1_states_provinces);
+```
+
+#### 3. 位置查詢範例
+
+```sql
+-- 查詢台北位置 (25.0330, 121.5654)
+SELECT name, admin, adm0_a3 
+FROM ne_10m_admin_1_states_provinces
+WHERE ST_Contains(
+    GEOMETRY,
+    ST_PointFromText('POINT(121.5654 25.0330)', 4326)
+);
+
+-- 查詢東京位置 (35.6895, 139.6917)
+SELECT name, admin, adm0_a3 
+FROM ne_10m_admin_1_states_provinces
+WHERE ST_Contains(
+    GEOMETRY,
+    ST_PointFromText('POINT(139.6917 35.6895)', 4326)
+);
+
+-- 查詢紐約位置 (40.7128, -74.0060)
+SELECT name, admin, adm0_a3 
+FROM ne_10m_admin_1_states_provinces
+WHERE ST_Contains(
+    GEOMETRY,
+    ST_PointFromText('POINT(-74.0060 40.7128)', 4326)
+);
+```
+
+#### 4. 統計查詢範例
+
+```sql
+-- 統計記錄數量
+SELECT COUNT(*) as total_records 
+FROM ne_10m_admin_1_states_provinces;
+
+-- 按國家分組統計
+SELECT adm0_a3, COUNT(*) as count 
+FROM ne_10m_admin_1_states_provinces 
+GROUP BY adm0_a3 
+ORDER BY count DESC 
+LIMIT 10;
+
+-- 查看特定國家的行政區
+SELECT name, admin, adm0_a3 
+FROM ne_10m_admin_1_states_provinces 
+WHERE adm0_a3 = 'TWN';
+```
+
+#### 5. 空間分析範例
+
+```sql
+-- 計算多邊形面積
+SELECT name, ST_Area(GEOMETRY) as area_sq_meters
+FROM ne_10m_admin_1_states_provinces
+WHERE name = 'Taipei';
+
+-- 查找最近的行政區
+SELECT name, admin, 
+       ST_Distance(
+           GEOMETRY, 
+           ST_PointFromText('POINT(121.5654 25.0330)', 4326)
+       ) as distance_meters
+FROM ne_10m_admin_1_states_provinces
+ORDER BY distance_meters
+LIMIT 5;
+```
+
+#### 6. 批量查詢範例
+
+```sql
+-- 創建臨時表存儲多個座標點
+CREATE TEMP TABLE points (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    lat REAL,
+    lon REAL
+);
+
+INSERT INTO points (name, lat, lon) VALUES
+    ('Taipei', 25.0330, 121.5654),
+    ('Tokyo', 35.6895, 139.6917),
+    ('New York', 40.7128, -74.0060),
+    ('London', 51.5074, -0.1278);
+
+-- 批量查詢所有點的位置
+SELECT p.name, p.lat, p.lon, 
+       a.name as region_name, 
+       a.admin, 
+       a.adm0_a3
+FROM points p
+LEFT JOIN ne_10m_admin_1_states_provinces a
+ON ST_Contains(
+    a.GEOMETRY,
+    ST_PointFromText('POINT(' || p.lon || ' ' || p.lat || ')', 4326)
+);
+```
+
+### 輸出格式控制
+
+```sql
+-- 設置輸出格式為 CSV
+.mode csv
+.headers on
+
+-- 設置輸出格式為表格
+.mode column
+.headers on
+
+-- 設置輸出格式為列表
+.mode list
+.separator "|"
+```
+
+### 退出 Spatialite
+```sql
+.quit
+```
+
+### 一鍵查詢腳本
+
+您也可以創建一個簡單的腳本來執行查詢：
+
+```bash
+#!/bin/bash
+# 查詢指定座標的位置信息
+
+LAT=$1
+LON=$2
+
+if [ -z "$LAT" ] || [ -z "$LON" ]; then
+    echo "用法: $0 <緯度> <經度>"
+    echo "範例: $0 25.0330 121.5654"
+    exit 1
+fi
+
+spatialite states.sqlite <<EOF
+.mode csv
+.headers on
+SELECT name, admin, adm0_a3 
+FROM ne_10m_admin_1_states_provinces
+WHERE ST_Contains(
+    GEOMETRY,
+    ST_PointFromText('POINT($LON $LAT)', 4326)
+);
+.quit
+EOF
+```
+
+保存為 `query_location.sh` 並執行：
+```bash
+chmod +x query_location.sh
+./query_location.sh 25.0330 121.5654
+```
+
 ## 技術細節
 
 ### 空間查詢
