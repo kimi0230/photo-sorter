@@ -1,8 +1,147 @@
+# 地理編碼查詢工具
 
-```sh
-spatialite states.sqlite
+這是一個基於 Spatialite 的地理編碼查詢工具，可以查詢地理位置信息和數據庫表結構。
+
+## 功能特色
+
+- **位置查詢**：根據經緯度查詢行政區信息
+- **表結構查詢**：查看 Spatialite 數據庫的表結構和統計信息
+- **命令行界面**：支持靈活的命令行參數
+- **多語言支持**：支持多種語言的表結構描述
+
+## 安裝要求
+
+- Go 1.12 或更高版本
+- Spatialite 5.1.0 或更高版本
+- Natural Earth 數據庫文件
+
+## 檔案結構
+
+```
+cmd/geo/
+├── main.go      # 主程序入口，處理命令行參數和路由
+├── location.go  # 位置查詢相關功能
+├── geometry.go  # 表結構查詢相關功能
+└── README.md    # 本文件
 ```
 
+## 使用方法
+
+### 基本語法
+
+```bash
+go run ./cmd/geo [選項]
+```
+
+### 命令行參數
+
+| 參數          | 類型    | 默認值                            | 說明                  |
+|---------------|---------|-----------------------------------|-----------------------|
+| `-db_path`    | string  | `states.sqlite`                   | Spatialite 數據庫路徑 |
+| `-lat`        | float64 | `43.06417`                        | 緯度                  |
+| `-lon`        | float64 | `141.34694`                       | 經度                  |
+| `-cmd`        | string  | `location`                        | 執行的命令            |
+| `-table_name` | string  | `ne_10m_admin_1_states_provinces` | 要查詢的表名          |
+| `-help`       | bool    | `false`                           | 顯示幫助信息          |
+
+### 命令類型
+
+- `location`：查詢地理位置（默認）
+- `geometry`：查詢表結構
+
+## 使用範例
+
+### 1. 查詢位置信息
+
+```bash
+# 查詢台北位置（預設座標）
+go run ./cmd/geo
+
+# 查詢指定座標
+go run ./cmd/geo -lat=25.0330 -lon=121.5654
+
+# 查詢東京
+go run ./cmd/geo -lat=35.6895 -lon=139.6917
+
+# 查詢紐約
+go run ./cmd/geo -lat=40.7128 -lon=-74.0060
+```
+
+### 2. 查詢表結構
+
+```bash
+# 查詢默認表結構
+go run ./cmd/geo -cmd=geometry
+
+# 查詢指定表結構
+go run ./cmd/geo -cmd=geometry -table_name=my_table
+
+# 使用自定義數據庫查詢表結構
+go run ./cmd/geo -cmd=geometry -db_path=my_database.sqlite -table_name=spatial_table
+```
+
+### 3. 顯示幫助
+
+```bash
+go run ./cmd/geo -help
+```
+
+## 輸出範例
+
+### 位置查詢輸出
+
+```
+查詢位置: 緯度=25.0330, 經度=121.5654
+使用數據庫: states.sqlite
+---
+查詢結果:
+Taipei|Taipei|TWN
+```
+
+### 表結構查詢輸出
+
+```
+查詢表結構
+使用數據庫: states.sqlite
+---
+表結構:
+表信息:
+├─ 表名: ne_10m_admin_1_states_provinces
+├─ 類型: 空間表 (Spatial Table)
+├─ 記錄數量: 4596 筆
+├─ 描述: 自然地球 1:10M 行政區劃分 (州/省級別)
+└─ 主要欄位:
+   ├─ ogc_fid (INTEGER): 主鍵識別碼
+   ├─ featurecla (VARCHAR): 文字資料
+   ├─ scalerank (INTEGER): 整數資料
+   ├─ name (VARCHAR): 名稱
+   ├─ admin (VARCHAR): 行政區名稱
+   ├─ adm0_a3 (VARCHAR): 國家代碼 (ISO 3166-1 alpha-3)
+   ├─ latitude (FLOAT): 緯度
+   ├─ longitude (FLOAT): 經度
+   └─ GEOMETRY (MULTIPOLYGON): 空間幾何數據
+```
+
+## 數據庫表結構
+
+### ne_10m_admin_1_states_provinces 表
+
+這是 Natural Earth 1:10M 行政區劃分表，包含以下主要欄位：
+
+| 欄位名     | 類型         | 說明                          |
+|------------|--------------|-------------------------------|
+| ogc_fid    | INTEGER      | 主鍵識別碼                    |
+| featurecla | VARCHAR(24)  | 特徵分類                      |
+| scalerank  | INTEGER      | 縮放等級                      |
+| adm1_code  | VARCHAR(9)   | 行政區代碼                    |
+| name       | VARCHAR(44)  | 地區名稱                      |
+| admin      | VARCHAR(36)  | 行政區名稱                    |
+| adm0_a3    | VARCHAR(3)   | 國家代碼 (ISO 3166-1 alpha-3) |
+| latitude   | FLOAT        | 緯度                          |
+| longitude  | FLOAT        | 經度                          |
+| GEOMETRY   | MULTIPOLYGON | 空間幾何數據                  |
+
+完整的表結構（共 123 個欄位）：
 
 ```sql
 PRAGMA table_info(ne_10m_admin_1_states_provinces);
@@ -131,3 +270,71 @@ PRAGMA table_info(ne_10m_admin_1_states_provinces);
 121|fclass_tlc|VARCHAR(12)|0||0
 122|GEOMETRY|MULTIPOLYGON|0||0
 ```
+
+## 技術細節
+
+### 空間查詢
+
+工具使用 Spatialite 的空間函數進行地理位置查詢：
+
+```sql
+SELECT name, admin, adm0_a3 FROM ne_10m_admin_1_states_provinces
+WHERE ST_Contains(
+    GEOMETRY,
+    ST_PointFromText('POINT(121.5654 25.0330)', 4326)
+);
+```
+
+### 支持的坐標系統
+
+- **EPSG:4326**：WGS84 地理坐標系統（經度/緯度）
+
+### 錯誤處理
+
+- 數據庫連接錯誤
+- 空間查詢錯誤
+- 表不存在錯誤
+- 參數驗證錯誤
+
+## 開發說明
+
+### 添加新命令
+
+1. 在 `main.go` 中添加新的命令常量
+2. 創建新的處理函數
+3. 在 switch 語句中添加新的 case
+
+### 擴展功能
+
+- 支持更多數據庫格式
+- 添加更多查詢類型
+- 支持批量查詢
+- 添加結果導出功能
+
+## 故障排除
+
+### 常見問題
+
+1. **找不到 spatialite 執行檔**
+   - 確保 Spatialite 已正確安裝
+   - 檢查 PATH 環境變數
+
+2. **數據庫文件不存在**
+   - 檢查 `-db_path` 參數指定的路徑
+   - 確保文件有讀取權限
+
+3. **查詢結果為空**
+   - 檢查坐標是否在數據庫覆蓋範圍內
+   - 確認數據庫包含相應的空間數據
+
+### 調試模式
+
+可以通過修改代碼添加更詳細的錯誤信息輸出。
+
+## 授權
+
+本工具遵循項目的整體授權條款。
+
+## 貢獻
+
+歡迎提交 Issue 和 Pull Request 來改進這個工具。

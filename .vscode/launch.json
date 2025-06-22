@@ -38,6 +38,60 @@
             "cwd": "${workspaceFolder}"
         },
         {
+            "name": "執行地理編碼查詢工具",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/geo",
+            "args": [
+                "-cmd",
+                "location",
+                "-lat",
+                "25.0330",
+                "-lon",
+                "121.5654",
+                "-db_path",
+                "${workspaceFolder}/geodata/states.sqlite",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "執行地理編碼查詢工具 (自訂參數)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/geo",
+            "args": [
+                "-cmd",
+                "${input:geoCommand}",
+                "-lat",
+                "${input:latitude}",
+                "-lon",
+                "${input:longitude}",
+                "-db_path",
+                "${input:dbPath}",
+                "-table_name",
+                "${input:tableName}"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "查詢表結構",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/geo",
+            "args": [
+                "-cmd",
+                "geometry",
+                "-db_path",
+                "${workspaceFolder}/geodata/states.sqlite",
+                "-table_name",
+                "ne_10m_admin_1_states_provinces"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
             "name": "測試",
             "type": "go",
             "request": "launch",
@@ -64,6 +118,40 @@
             "type": "promptString",
             "description": "請輸入併發數",
             "default": "4"
+        },
+        {
+            "id": "geoCommand",
+            "type": "pickString",
+            "description": "選擇要執行的命令",
+            "options": [
+                "location",
+                "geometry"
+            ],
+            "default": "location"
+        },
+        {
+            "id": "latitude",
+            "type": "promptString",
+            "description": "請輸入緯度",
+            "default": "25.0330"
+        },
+        {
+            "id": "longitude",
+            "type": "promptString",
+            "description": "請輸入經度",
+            "default": "121.5654"
+        },
+        {
+            "id": "dbPath",
+            "type": "promptString",
+            "description": "請輸入數據庫路徑",
+            "default": "states.sqlite"
+        },
+        {
+            "id": "tableName",
+            "type": "promptString",
+            "description": "請輸入表名",
+            "default": "ne_10m_admin_1_states_provinces"
         }
     ]
 }
