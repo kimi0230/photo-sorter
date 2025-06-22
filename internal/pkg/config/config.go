@@ -20,7 +20,7 @@ type Config struct {
 	Formats      []string               `yaml:"formats"`        // 支援的檔案格式
 	DateFormat   string                 `yaml:"date_format"`    // 日期格式：YYYY-MM-DD 或 YYYY-MM
 	EnableGeoTag bool                   `yaml:"enable_geo_tag"` // 是否啟用地理位置標籤
-	GeoJSONPath  string                 `yaml:"geo_json_path"`  // GeoJSON 檔案路徑
+	GeoDBPath    string                 `yaml:"geo_db_path"`    // Geo DB 檔案路徑
 	GeocoderType geocoding.GeocoderType `yaml:"geocoder_type"`  // 地理編碼器類型
 	LogLevel     string                 `yaml:"log_level"`      // 日誌等級：debug, info, warn, error
 	EnableVerify bool                   `yaml:"enable_verify"`  // 是否啟用驗證
@@ -55,11 +55,11 @@ func LoadConfig(configPath string) (*Config, error) {
 	if cfg.EnableGeoTag {
 		cfg.EnableGeoTag = true
 	}
-	if cfg.GeoJSONPath == "" {
-		cfg.GeoJSONPath = "./internal/pkg/geocoding/geodata/states.geojson"
+	if cfg.GeoDBPath == "" {
+		cfg.GeoDBPath = "./internal/pkg/geocoding/geodata/states.geojson"
 	}
 	if cfg.GeocoderType == "" {
-		cfg.GeocoderType = geocoding.GeoStateType
+		cfg.GeocoderType = geocoding.GeoTypeJson
 	}
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "info" // 預設日誌等級為 info

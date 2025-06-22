@@ -79,7 +79,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 
 		if lat != 0 && lon != 0 {
 			geocoder, err := geocoding.NewGeocoder(cfg.GeocoderType, map[string]interface{}{
-				"json_path": cfg.GeoJSONPath,
+				"db_path": cfg.GeoDBPath,
 			})
 			if err == nil {
 				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)

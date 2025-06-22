@@ -15,7 +15,7 @@
 import "your-project/internal/pkg/geocoding"
 
 // 創建地理編碼器實例
-geocoder, err := geocoding.NewGeocoder(geocoding.GeoStateType, map[string]interface{}{
+geocoder, err := geocoding.NewGeocoder(geocoding.GeoTypeJson, map[string]interface{}{
     "json_path": "path/to/your/geojson/file",
 })
 if err != nil {

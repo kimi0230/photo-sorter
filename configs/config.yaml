@@ -17,11 +17,11 @@ date_format: "2006-01"
 # 是否啟用地理位置標籤
 enable_geo_tag: true
 
-# GeoJSON 檔案路徑
-geo_json_path: "./geodata/states.geojson"
+# Geo DB 檔案路徑 (./geodata/states.geojson / ./geodata/states.sqlite)
+geo_db_path: "./geodata/states.sqlite"
 
-# 地理編碼器類型
-geocoder_type: "geo_state_json"
+# 地理編碼器類型 (geo_json / geo_spatialite)
+geocoder_type: "geo_spatialite"
 
 # 日誌等級設定 (debug, info, warn, error)
 log_level: "info"

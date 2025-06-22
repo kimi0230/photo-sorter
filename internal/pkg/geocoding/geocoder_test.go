@@ -9,8 +9,8 @@ import (
 func TestGeocoderLocationMapping(t *testing.T) {
 	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
 
-	geocoder, err := NewGeocoder(GeoStateType, map[string]interface{}{
-		"json_path": testJSONPath,
+	geocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
+		"db_path": testJSONPath,
 	})
 	if err != nil {
 		t.Fatalf("建立地理編碼器失敗: %v", err)
@@ -119,7 +119,7 @@ func TestGeocoderLocationMappingSpatialite(t *testing.T) {
 			name:     "台北",
 			lat:      25.0330,
 			lon:      121.5654,
-			expected: "New Taipei",
+			expected: "Taipei",
 		},
 		{
 			name:     "澎湖",
@@ -194,8 +194,8 @@ func TestGeocoderLocationMappingSpatialite(t *testing.T) {
 func BenchmarkGetLocationFromGPS(b *testing.B) {
 	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
 
-	geocoder, err := NewGeocoder(GeoStateType, map[string]interface{}{
-		"json_path": testJSONPath,
+	geocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
+		"db_path": testJSONPath,
 	})
 	if err != nil {
 		b.Fatalf("建立地理編碼器失敗: %v", err)
@@ -251,8 +251,8 @@ func BenchmarkGetLocationFromGPSWithPprof(b *testing.B) {
 
 	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
 
-	geocoder, err := NewGeocoder(GeoStateType, map[string]interface{}{
-		"json_path": testJSONPath,
+	geocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
+		"db_path": testJSONPath,
 	})
 	if err != nil {
 		b.Fatalf("建立地理編碼器失敗: %v", err)
@@ -308,4 +308,189 @@ func TestSpatialiteGeocoder(t *testing.T) {
 	if location != nil {
 		t.Logf("找到位置: Country=%s, City=%s", location.Country, location.City)
 	}
+}
+
+func BenchmarkGeocoderComparison(b *testing.B) {
+	// 測試數據路徑
+	jsonPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
+	sqlitePath := "/Users/kimi/go/src/photo-sorter/geodata/states.sqlite"
+
+	// 創建 JSON 地理編碼器
+	jsonGeocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
+		"db_path": jsonPath,
+	})
+	if err != nil {
+		b.Fatalf("建立 JSON 地理編碼器失敗: %v", err)
+	}
+
+	// 創建 Spatialite 地理編碼器
+	sqliteGeocoder, err := NewGeocoder(GeoTypeSpatialite, map[string]interface{}{
+		"db_path": sqlitePath,
+	})
+	if err != nil {
+		b.Fatalf("建立 Spatialite 地理編碼器失敗: %v", err)
+	}
+
+	// 測試不同位置的效能
+	testCases := []struct {
+		name string
+		lat  float64
+		lon  float64
+	}{
+		{"台北", 25.0330, 121.5654},
+		{"澎湖", 23.5494003, 119.5890471},
+		{"東京", 35.6895, 139.6917},
+		{"紐約", 40.7128, -74.0060},
+		{"倫敦", 51.5074, -0.1278},
+		{"巴黎", 48.8566, 2.3522},
+		{"柏林", 52.5200, 13.4050},
+		{"北京", 39.9384151, 116.0671435},
+		{"首爾", 37.5665, 126.9780},
+		{"雪梨", -33.8688, 151.2093},
+	}
+
+	// 測試 JSON 地理編碼器
+	b.Run("JSON_Geocoder", func(b *testing.B) {
+		for _, tc := range testCases {
+			b.Run(tc.name, func(b *testing.B) {
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_, err := jsonGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
+					if err != nil {
+						b.Fatalf("JSON 地理編碼器取得位置失敗: %v", err)
+					}
+				}
+			})
+		}
+	})
+
+	// 測試 Spatialite 地理編碼器
+	b.Run("Spatialite_Geocoder", func(b *testing.B) {
+		for _, tc := range testCases {
+			b.Run(tc.name, func(b *testing.B) {
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_, err := sqliteGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
+					if err != nil {
+						b.Fatalf("Spatialite 地理編碼器取得位置失敗: %v", err)
+					}
+				}
+			})
+		}
+	})
+}
+
+func BenchmarkGeocoderComparisonSingleLocation(b *testing.B) {
+	// 測試數據路徑
+	jsonPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
+	sqlitePath := "/Users/kimi/go/src/photo-sorter/geodata/states.sqlite"
+
+	// 創建 JSON 地理編碼器
+	jsonGeocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
+		"db_path": jsonPath,
+	})
+	if err != nil {
+		b.Fatalf("建立 JSON 地理編碼器失敗: %v", err)
+	}
+
+	// 創建 Spatialite 地理編碼器
+	sqliteGeocoder, err := NewGeocoder(GeoTypeSpatialite, map[string]interface{}{
+		"db_path": sqlitePath,
+	})
+	if err != nil {
+		b.Fatalf("建立 Spatialite 地理編碼器失敗: %v", err)
+	}
+
+	// 使用台北座標進行測試
+	lat := 25.0330
+	lon := 121.5654
+
+	// 測試 JSON 地理編碼器
+	b.Run("JSON_Geocoder_Taipei", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := jsonGeocoder.GetLocationFromGPS(lat, lon)
+			if err != nil {
+				b.Fatalf("JSON 地理編碼器取得位置失敗: %v", err)
+			}
+		}
+	})
+
+	// 測試 Spatialite 地理編碼器
+	b.Run("Spatialite_Geocoder_Taipei", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := sqliteGeocoder.GetLocationFromGPS(lat, lon)
+			if err != nil {
+				b.Fatalf("Spatialite 地理編碼器取得位置失敗: %v", err)
+			}
+		}
+	})
+}
+
+func BenchmarkGeocoderComparisonWithMemory(b *testing.B) {
+	// 測試數據路徑
+	jsonPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
+	sqlitePath := "/Users/kimi/go/src/photo-sorter/geodata/states.sqlite"
+
+	// 創建 JSON 地理編碼器
+	jsonGeocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
+		"db_path": jsonPath,
+	})
+	if err != nil {
+		b.Fatalf("建立 JSON 地理編碼器失敗: %v", err)
+	}
+
+	// 創建 Spatialite 地理編碼器
+	sqliteGeocoder, err := NewGeocoder(GeoTypeSpatialite, map[string]interface{}{
+		"db_path": sqlitePath,
+	})
+	if err != nil {
+		b.Fatalf("建立 Spatialite 地理編碼器失敗: %v", err)
+	}
+
+	// 測試不同位置的效能
+	testCases := []struct {
+		name string
+		lat  float64
+		lon  float64
+	}{
+		{"台北", 25.0330, 121.5654},
+		{"澎湖", 23.5494003, 119.5890471},
+		{"東京", 35.6895, 139.6917},
+		{"紐約", 40.7128, -74.0060},
+		{"倫敦", 51.5074, -0.1278},
+	}
+
+	// 測試 JSON 地理編碼器（包含記憶體統計）
+	b.Run("JSON_Geocoder_WithMemory", func(b *testing.B) {
+		for _, tc := range testCases {
+			b.Run(tc.name, func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_, err := jsonGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
+					if err != nil {
+						b.Fatalf("JSON 地理編碼器取得位置失敗: %v", err)
+					}
+				}
+			})
+		}
+	})
+
+	// 測試 Spatialite 地理編碼器（包含記憶體統計）
+	b.Run("Spatialite_Geocoder_WithMemory", func(b *testing.B) {
+		for _, tc := range testCases {
+			b.Run(tc.name, func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_, err := sqliteGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
+					if err != nil {
+						b.Fatalf("Spatialite 地理編碼器取得位置失敗: %v", err)
+					}
+				}
+			})
+		}
+	})
 }
