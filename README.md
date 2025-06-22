@@ -2,6 +2,8 @@
 
 這是一個使用 Go 語言開發的照片和影片分類工具，可以根據拍攝時間、裝置型號和地理位置自動整理媒體檔案。
 
+**目前只支援 MacOS**
+
 ## 功能特點
 
 - 根據拍攝日期（Create Date）自動分類
@@ -16,7 +18,9 @@
 ## 系統需求
 
 - Go 1.23 或更高版本
-- exiftool
+- [exiftool](#exiftool)
+- [spatialite](#spatialite-tools)
+- [tag](#tag)
 
 ## 安裝
 
