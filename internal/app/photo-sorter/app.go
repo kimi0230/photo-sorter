@@ -13,7 +13,6 @@ import (
 	"photo-sorter/internal/app/photo-sorter/file"
 	"photo-sorter/internal/app/photo-sorter/progress"
 	"photo-sorter/internal/app/photo-sorter/stats"
-	"photo-sorter/internal/app/photo-sorter/verify"
 	"photo-sorter/internal/app/photo-sorter/worker"
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/logger"
@@ -222,20 +221,74 @@ func (a *App) Run(ctx context.Context) error {
 		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
 	}
 
-	// 驗證目錄
+	// 驗證目錄（改用移動後，只需檢查檔案數量）
 	matchResult := ""
 	if a.config.EnableVerify {
-		result, err := verify.CompareDirectories(a.config.SrcDir, a.config.DstDir)
+		// 計算來源目錄剩餘檔案數（應該只剩下失敗的檔案）
+		sourceCount := 0
+		err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			// 排除目標目錄
+			if strings.HasPrefix(path, a.config.DstDir) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !info.IsDir() {
+				// 排除忽略的檔案
+				if !a.config.ShouldIgnore(path) {
+					sourceCount++
+				}
+			}
+			return nil
+		})
 		if err != nil {
-			a.logger.LogError("", fmt.Sprintf("驗證目錄失敗: %v", err))
+			a.logger.LogError("", fmt.Sprintf("計算來源目錄檔案數失敗: %v", err))
 		}
-		match := verify.IsMatch(result, a.config.Ignore)
-		if match {
+
+		// 計算目標目錄檔案數（包含成功處理的檔案和失敗的檔案）
+		targetCount := 0
+		err = filepath.Walk(a.config.DstDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !info.IsDir() {
+				targetCount++
+			}
+			return nil
+		})
+		if err != nil {
+			a.logger.LogError("", fmt.Sprintf("計算目標目錄檔案數失敗: %v", err))
+		}
+
+		// 驗證邏輯：
+		// 1. 目標目錄檔案數應該等於成功處理數 + 失敗處理數（失敗的檔案會移到 failed_files）
+		// 2. 來源目錄應該只剩下未處理的檔案（如果有）
+		expectedTargetCount := stats.SuccessCount + stats.FailureCount
+
+		// 允許一些誤差（因為可能有其他檔案，如系統檔案等）
+		// 主要檢查目標目錄的檔案數是否合理
+		if targetCount >= expectedTargetCount && sourceCount <= stats.TotalFiles-expectedTargetCount {
 			matchResult = "目錄匹配成功"
-			a.logger.LogInfo("目錄匹配成功")
+			a.logger.LogInfo("目錄匹配成功",
+				zap.Int("來源目錄剩餘檔案數", sourceCount),
+				zap.Int("目標目錄檔案數", targetCount),
+				zap.Int("成功處理數", stats.SuccessCount),
+				zap.Int("失敗處理數", stats.FailureCount),
+				zap.Int("預期目標目錄檔案數", expectedTargetCount),
+			)
 		} else {
 			matchResult = "目錄不匹配"
-			a.logger.LogError("", "目錄不匹配")
+			a.logger.LogInfo("目錄不匹配",
+				zap.Int("來源目錄剩餘檔案數", sourceCount),
+				zap.Int("目標目錄檔案數", targetCount),
+				zap.Int("成功處理數", stats.SuccessCount),
+				zap.Int("失敗處理數", stats.FailureCount),
+				zap.Int("預期目標目錄檔案數", expectedTargetCount),
+			)
 		}
 	}
 

@@ -52,10 +52,10 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 		return nil
 	}
 
-	// 複製檔案
-	if err := CopyFile(path, targetPath); err != nil {
-		logger.LogError(path, fmt.Sprintf("複製檔案失敗: %v", err))
-		return fmt.Errorf("複製檔案失敗: %v", err)
+	// 移動檔案
+	if err := MoveFile(path, targetPath); err != nil {
+		logger.LogError(path, fmt.Sprintf("移動檔案失敗: %v", err))
+		return fmt.Errorf("移動檔案失敗: %v", err)
 	}
 
 	// 檢查 context 是否已取消
@@ -132,7 +132,7 @@ func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logge
 		return nil
 	}
 
-	return CopyFile(path, targetPath)
+	return MoveFile(path, targetPath)
 }
 
 // HandelFailedFolder 將檔案移動到失敗資料夾
@@ -163,8 +163,73 @@ func HandelFailedFolder(path string, cfg *config.Config, logger *logger.Logger) 
 		fmt.Printf("DryRun: 將移動失敗的檔案: %s -> %s\n", path, targetPath)
 		return nil
 	}
-	return CopyFile(path, targetPath)
+	return MoveFile(path, targetPath)
 
+}
+
+// MoveFile 移動檔案（保留所有時間戳記）
+func MoveFile(src, dst string) error {
+	// 確保目標目錄存在
+	dstDir := filepath.Dir(dst)
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return fmt.Errorf("建立目標目錄失敗: %v", err)
+	}
+
+	// 嘗試直接移動（同一個檔案系統內）
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+
+	// 如果跨檔案系統移動失敗，則複製後刪除
+	// 先複製檔案
+	if err := copyFileForMove(src, dst); err != nil {
+		return fmt.Errorf("複製檔案失敗: %v", err)
+	}
+
+	// 刪除原始檔案
+	if err := os.Remove(src); err != nil {
+		// 如果刪除失敗，嘗試刪除已複製的檔案
+		os.Remove(dst)
+		return fmt.Errorf("刪除原始檔案失敗: %v", err)
+	}
+
+	return nil
+}
+
+// copyFileForMove 用於跨檔案系統移動時的複製（保留時間戳記）
+func copyFileForMove(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	// 取得原始檔案的資訊
+	fileInfo, err := source.Stat()
+	if err != nil {
+		return err
+	}
+	modTime := fileInfo.ModTime()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	// 複製內容
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		return err
+	}
+
+	// 保留原始檔案的修改時間和訪問時間
+	if err := os.Chtimes(dst, modTime, modTime); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CopyFileWithBuffer 使用 buffer 複製檔案（適合大檔案）
