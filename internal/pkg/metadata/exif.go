@@ -17,6 +17,7 @@ import (
 type ExifData struct {
 	CreateDate      string `json:"CreateDate"`
 	MediaCreateDate string `json:"MediaCreateDate"`
+	DateTimeCreated string `json:"DateTimeCreated"`
 	Model           string `json:"Model"`
 	GPSLatitude     string `json:"GPSLatitude"`
 	GPSLongitude    string `json:"GPSLongitude"`
@@ -73,7 +74,7 @@ func ParseGPSString(gpsStr string) (float64, error) {
 
 func GetExifData(path string) (*ExifData, error) {
 	startTime := time.Now()
-	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-Model", "-GPSLatitude", "-GPSLongitude", "-ee", path)
+	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-Model", "-GPSLatitude", "-GPSLongitude", "-ee", path)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("執行 exiftool 失敗: %v", err)
@@ -125,8 +126,11 @@ func getDeviceName(model string) string {
 }
 
 func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, error) {
-	// 取得日期
+	// 取得日期（優先順序：CreateDate > DateTimeCreated > MediaCreateDate）
 	date := exif.CreateDate
+	if date == "" {
+		date = exif.DateTimeCreated
+	}
 	if date == "" {
 		date = exif.MediaCreateDate
 	}
