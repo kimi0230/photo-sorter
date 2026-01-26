@@ -18,6 +18,7 @@ type ExifData struct {
 	CreateDate      string `json:"CreateDate"`
 	MediaCreateDate string `json:"MediaCreateDate"`
 	DateTimeCreated string `json:"DateTimeCreated"`
+	FileModifyDate  string `json:"FileModifyDate"`
 	Model           string `json:"Model"`
 	GPSLatitude     string `json:"GPSLatitude"`
 	GPSLongitude    string `json:"GPSLongitude"`
@@ -72,9 +73,30 @@ func ParseGPSString(gpsStr string) (float64, error) {
 	return decimal, nil
 }
 
+// isValidDate 檢查日期是否有效
+// 將空字串和無效日期（如 0000:00:00 00:00:00）視為無效
+func isValidDate(date string) bool {
+	if date == "" {
+		return false
+	}
+	// 檢查是否為無效日期格式
+	invalidDates := []string{
+		"0000:00:00 00:00:00",
+		"0000-00-00 00:00:00",
+		"0000:00:00",
+		"0000-00-00",
+	}
+	for _, invalid := range invalidDates {
+		if date == invalid {
+			return false
+		}
+	}
+	return true
+}
+
 func GetExifData(path string) (*ExifData, error) {
 	startTime := time.Now()
-	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-Model", "-GPSLatitude", "-GPSLongitude", "-ee", path)
+	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-FileModifyDate", "-Model", "-GPSLatitude", "-GPSLongitude", "-ee", path)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("執行 exiftool 失敗: %v", err)
@@ -126,20 +148,46 @@ func getDeviceName(model string) string {
 }
 
 func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, error) {
-	// 取得日期（優先順序：CreateDate > DateTimeCreated > MediaCreateDate）
-	date := exif.CreateDate
-	if date == "" {
+	// 取得日期（優先順序：CreateDate > DateTimeCreated > MediaCreateDate > FileModifyDate）
+	date := ""
+	if isValidDate(exif.CreateDate) {
+		date = exif.CreateDate
+	} else if isValidDate(exif.DateTimeCreated) {
 		date = exif.DateTimeCreated
-	}
-	if date == "" {
+	} else if isValidDate(exif.MediaCreateDate) {
 		date = exif.MediaCreateDate
+	} else if isValidDate(exif.FileModifyDate) {
+		date = exif.FileModifyDate
 	}
+
 	if date == "" {
 		date = "unknown_date"
 	} else {
 		// 解析日期字串並使用設定檔中的格式
-		t, err := time.Parse("2006:01:02 15:04:05", date)
-		if err != nil {
+		// 嘗試多種日期格式
+		var t time.Time
+		var err error
+
+		// 常見的日期格式
+		dateFormats := []string{
+			"2006:01:02 15:04:05",       // 標準 EXIF 格式
+			"2006:01:02 15:04:05-07:00", // 帶時區的格式
+			"2006:01:02 15:04:05+07:00", // 帶時區的格式
+			"2006-01-02 15:04:05",       // ISO 格式
+			"2006-01-02 15:04:05-07:00", // ISO 帶時區
+			"2006-01-02 15:04:05+07:00", // ISO 帶時區
+		}
+
+		parsed := false
+		for _, format := range dateFormats {
+			t, err = time.Parse(format, date)
+			if err == nil {
+				parsed = true
+				break
+			}
+		}
+
+		if !parsed {
 			date = "unknown_date"
 		} else {
 			date = t.Format(cfg.DateFormat)
