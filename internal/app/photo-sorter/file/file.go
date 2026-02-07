@@ -29,7 +29,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	exifData, err := exifReader.GetExifData(path)
 	if err != nil {
 		logger.LogInfo(path, zap.String("exif_error", "moving file to failed folder"))
-		return HandelFailedFolder(path, cfg, logger)
+		return HandelFailedFolder(path, cfg)
 	}
 
 	// 檢查 context 是否已取消
@@ -42,7 +42,6 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	// 取得目標路徑
 	targetPath, location, err := metadata.GetTargetPath(path, exifData, cfg)
 	if err != nil {
-		logger.LogError(path, fmt.Sprintf("Failed to get target path: %v", err))
 		return fmt.Errorf("failed to get target path: %v", err)
 	}
 
@@ -53,7 +52,6 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 
 	// 移動檔案
 	if err := MoveFile(path, targetPath); err != nil {
-		logger.LogError(path, fmt.Sprintf("Failed to move file: %v", err))
 		return fmt.Errorf("failed to move file: %v", err)
 	}
 
@@ -87,11 +85,10 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 }
 
 // HandleUnsupportedFile 處理不支援的檔案
-func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logger) error {
+func HandleUnsupportedFile(path string, cfg *config.Config) error {
 	// 建立 unknown_format 資料夾
 	unknownDir := filepath.Join(cfg.DstDir, "unknown_format")
 	if err := os.MkdirAll(unknownDir, 0755); err != nil {
-		logger.LogError(path, fmt.Sprintf("Failed to create unknown_format directory: %v", err))
 		return err
 	}
 
@@ -118,12 +115,11 @@ func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logge
 }
 
 // HandelFailedFolder 將檔案移動到失敗資料夾
-func HandelFailedFolder(path string, cfg *config.Config, logger *logger.Logger) error {
+func HandelFailedFolder(path string, cfg *config.Config) error {
 	// 建立失敗資料夾
 	failDir := filepath.Join(cfg.DstDir, "failed_files")
 
 	if err := os.MkdirAll(failDir, 0755); err != nil {
-		logger.LogError(path, fmt.Sprintf("Failed to create failed_files directory: %v", err))
 		return err
 	}
 

@@ -55,7 +55,7 @@ func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- erro
 			progress.Update()
 			err := file.ProcessFile(ctx, path, cfg, logger, exifReader, tagProvider)
 			if err != nil {
-				logger.LogError(path, fmt.Sprintf("Worker %d failed: %v", id, err))
+				err = fmt.Errorf("worker %d failed for %s: %w", id, path, err)
 				stats.IncrementFailure()
 			} else {
 				logger.LogDebug("Worker succeeded",

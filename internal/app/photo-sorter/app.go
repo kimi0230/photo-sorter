@@ -280,7 +280,7 @@ func (a *App) scanJobs() ([]string, int, int, error) {
 			} else {
 				// 處理不支援的檔案
 				a.stats.IncrementUnsupportedExt(filepath.Ext(path))
-				if err := file.HandleUnsupportedFile(path, a.config, a.logger); err != nil {
+				if err := file.HandleUnsupportedFile(path, a.config); err != nil {
 					a.logger.LogError(path, fmt.Sprintf("Failed to handle unsupported file: %v", err))
 					a.stats.IncrementFailure()
 				} else {
