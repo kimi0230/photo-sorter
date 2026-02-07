@@ -17,11 +17,7 @@ func TestMacOSTagger_AddTag(t *testing.T) {
 	}
 
 	// Create a test file on disk.
-	testDir := "testdata"
-	if err := os.MkdirAll(testDir, 0755); err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
+	testDir := t.TempDir()
 	testFile := filepath.Join(testDir, "test_image.jpg")
 	file, err := os.Create(testFile)
 	if err != nil {
@@ -29,7 +25,6 @@ func TestMacOSTagger_AddTag(t *testing.T) {
 	}
 	defer func() {
 		file.Close()
-		os.RemoveAll(testDir)
 	}()
 
 	// Write some test data.
