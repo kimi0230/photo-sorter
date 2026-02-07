@@ -2,6 +2,7 @@ package photosorter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,9 +58,6 @@ func (a *App) Run(ctx context.Context) error {
 		zap.Bool("enable_geo_tag", a.config.EnableGeoTag),
 		zap.String("geocoder_type", string(a.config.GeocoderType)),
 		zap.String("log_level", a.config.LogLevel),
-		zap.Bool("enable_verify", a.config.EnableVerify),
-		zap.Any("ignored_files", a.config.Ignore),
-		zap.Any("supported_formats", a.config.Formats),
 	)
 
 	if err := directory.PrintDirectoryStats(a.config.SrcDir, a.logger); err != nil {
@@ -78,50 +76,7 @@ func (a *App) Run(ctx context.Context) error {
 	jobs := make(chan string, 100)
 	results := make(chan error, 100)
 
-	// Scan once to count files and build the job list.
-	totalFiles, ignoredFiles := 0, 0
-	jobList := make([]string, 0, 1024)
-	err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// 檢查是否為目標目錄或其子目錄
-		if strings.HasPrefix(path, a.config.DstDir) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		// 只計算來源目錄中的檔案
-		if !info.IsDir() {
-			// 檢查是否要忽略此檔案
-			if a.config.ShouldIgnore(path) {
-				a.logger.LogInfo(path, zap.String("ignored_file_ext", filepath.Ext(path)))
-				a.stats.IncrementIgnoredExt(filepath.Ext(path))
-				ignoredFiles++
-				return nil
-			}
-			totalFiles++
-
-			// 檢查是否為支援的格式
-			if a.config.IsSupportedFormat(path) {
-				jobList = append(jobList, path)
-			} else {
-				// 處理不支援的檔案
-				a.stats.IncrementUnsupportedExt(filepath.Ext(path))
-				if err := file.HandleUnsupportedFile(path, a.config, a.logger); err != nil {
-					a.logger.LogError(path, fmt.Sprintf("Failed to handle unsupported file: %v", err))
-					a.stats.IncrementFailure()
-				} else {
-					a.logger.LogDebug(path, zap.String("unsupported_file_handled", filepath.Ext(path)))
-					a.stats.IncrementSuccess()
-				}
-			}
-		}
-		return nil
-	})
+	jobList, totalFiles, ignoredFiles, err := a.scanJobs()
 	if err != nil {
 		return fmt.Errorf("failed to count total files: %v", err)
 	}
@@ -137,14 +92,7 @@ func (a *App) Run(ctx context.Context) error {
 		zap.Int("total_files", totalFiles),
 	)
 
-	var wg sync.WaitGroup
-	for i := 0; i < a.config.Workers; i++ {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-			worker.Worker(ctx, id, jobs, results, a.config, a.logger, a.progress, a.stats)
-		}(i)
-	}
+	wg := a.startWorkers(ctx, jobs, results)
 
 	// Dispatch jobs based on the scanned list.
 	go func() {
@@ -165,17 +113,8 @@ func (a *App) Run(ctx context.Context) error {
 		close(results)
 	}()
 
-	// 處理結果
-	for err := range results {
-		if err != nil {
-			if err.Error() == "context canceled" {
-				a.logger.LogInfo("Process canceled",
-					zap.String("status", "canceled"),
-				)
-				return fmt.Errorf("process canceled")
-			}
-			a.logger.LogError("", fmt.Sprintf("Failed to process file: %v", err))
-		}
+	if err := a.collectResults(ctx, results); err != nil {
+		return err
 	}
 
 	// 輸出統計資訊
@@ -296,6 +235,80 @@ func (a *App) Run(ctx context.Context) error {
 		return fmt.Errorf("process canceled: %v", ctx.Err())
 	}
 
+	return nil
+}
+
+func (a *App) scanJobs() ([]string, int, int, error) {
+	totalFiles, ignoredFiles := 0, 0
+	jobList := make([]string, 0, 1024)
+	err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 檢查是否為目標目錄或其子目錄
+		if strings.HasPrefix(path, a.config.DstDir) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// 只計算來源目錄中的檔案
+		if !info.IsDir() {
+			// 檢查是否要忽略此檔案
+			if a.config.ShouldIgnore(path) {
+				a.logger.LogInfo(path, zap.String("ignored_file_ext", filepath.Ext(path)))
+				a.stats.IncrementIgnoredExt(filepath.Ext(path))
+				ignoredFiles++
+				return nil
+			}
+			totalFiles++
+
+			// 檢查是否為支援的格式
+			if a.config.IsSupportedFormat(path) {
+				jobList = append(jobList, path)
+			} else {
+				// 處理不支援的檔案
+				a.stats.IncrementUnsupportedExt(filepath.Ext(path))
+				if err := file.HandleUnsupportedFile(path, a.config, a.logger); err != nil {
+					a.logger.LogError(path, fmt.Sprintf("Failed to handle unsupported file: %v", err))
+					a.stats.IncrementFailure()
+				} else {
+					a.logger.LogDebug(path, zap.String("unsupported_file_handled", filepath.Ext(path)))
+					a.stats.IncrementSuccess()
+				}
+			}
+		}
+		return nil
+	})
+	return jobList, totalFiles, ignoredFiles, err
+}
+
+func (a *App) startWorkers(ctx context.Context, jobs <-chan string, results chan<- error) *sync.WaitGroup {
+	var wg sync.WaitGroup
+	for i := 0; i < a.config.Workers; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			worker.Worker(ctx, id, jobs, results, a.config, a.logger, a.progress, a.stats)
+		}(i)
+	}
+	return &wg
+}
+
+func (a *App) collectResults(ctx context.Context, results <-chan error) error {
+	for err := range results {
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				a.logger.LogInfo("Process canceled",
+					zap.String("status", "canceled"),
+				)
+				return fmt.Errorf("process canceled")
+			}
+			a.logger.LogError("", fmt.Sprintf("Failed to process file: %v", err))
+		}
+	}
 	return nil
 }
 

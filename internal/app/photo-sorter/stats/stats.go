@@ -63,5 +63,14 @@ func (s *Stats) SetTotalFiles(total int) {
 func (s *Stats) GetStats() Stats {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return *s
+	statsCopy := *s
+	statsCopy.UnsupportedExts = make(map[string]int, len(s.UnsupportedExts))
+	for ext, count := range s.UnsupportedExts {
+		statsCopy.UnsupportedExts[ext] = count
+	}
+	statsCopy.IgnoredExts = make(map[string]int, len(s.IgnoredExts))
+	for ext, count := range s.IgnoredExts {
+		statsCopy.IgnoredExts[ext] = count
+	}
+	return statsCopy
 }
