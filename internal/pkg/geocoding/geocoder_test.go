@@ -2,12 +2,32 @@ package geocoding
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime/pprof"
 	"testing"
 )
 
+func geoDataPath(t *testing.T, filename string) string {
+	t.Helper()
+
+	path := filepath.Join("..", "..", "..", "geodata", filename)
+	if _, err := os.Stat(path); err != nil {
+		t.Skipf("missing geodata file: %s", path)
+	}
+	return path
+}
+
+func requireSpatialite(t *testing.T) {
+	t.Helper()
+
+	if _, err := exec.LookPath("spatialite"); err != nil {
+		t.Skipf("missing spatialite command: %v", err)
+	}
+}
+
 func TestGeocoderLocationMapping(t *testing.T) {
-	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
+	testJSONPath := geoDataPath(t, "states.geojson")
 
 	geocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
 		"db_path": testJSONPath,
@@ -100,7 +120,8 @@ func TestGeocoderLocationMapping(t *testing.T) {
 }
 
 func TestGeocoderLocationMappingSpatialite(t *testing.T) {
-	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.sqlite"
+	requireSpatialite(t)
+	testJSONPath := geoDataPath(t, "states.sqlite")
 
 	geocoder, err := NewGeocoder(GeoTypeSpatialite, map[string]interface{}{
 		"db_path": testJSONPath,
@@ -192,7 +213,7 @@ func TestGeocoderLocationMappingSpatialite(t *testing.T) {
 	}
 }
 func BenchmarkGetLocationFromGPS(b *testing.B) {
-	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
+	testJSONPath := filepath.Join("..", "..", "..", "geodata", "states.geojson")
 
 	geocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
 		"db_path": testJSONPath,
@@ -249,7 +270,7 @@ func BenchmarkGetLocationFromGPSWithPprof(b *testing.B) {
 	defer memFile.Close()
 	defer pprof.WriteHeapProfile(memFile)
 
-	testJSONPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
+	testJSONPath := filepath.Join("..", "..", "..", "geodata", "states.geojson")
 
 	geocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
 		"db_path": testJSONPath,
@@ -286,8 +307,9 @@ func BenchmarkGetLocationFromGPSWithPprof(b *testing.B) {
 
 func TestSpatialiteGeocoder(t *testing.T) {
 	// 測試 Spatialite 地理編碼器
+	requireSpatialite(t)
 	options := map[string]interface{}{
-		"db_path": "geodata/states.sqlite",
+		"db_path": geoDataPath(t, "states.sqlite"),
 	}
 
 	geocoder, err := NewGeocoder(GeoTypeSpatialite, options)
@@ -312,8 +334,8 @@ func TestSpatialiteGeocoder(t *testing.T) {
 
 func BenchmarkGeocoderComparison(b *testing.B) {
 	// 測試數據路徑
-	jsonPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
-	sqlitePath := "/Users/kimi/go/src/photo-sorter/geodata/states.sqlite"
+	jsonPath := filepath.Join("..", "..", "..", "geodata", "states.geojson")
+	sqlitePath := filepath.Join("..", "..", "..", "geodata", "states.sqlite")
 
 	// 創建 JSON 地理編碼器
 	jsonGeocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
@@ -382,8 +404,8 @@ func BenchmarkGeocoderComparison(b *testing.B) {
 
 func BenchmarkGeocoderComparisonSingleLocation(b *testing.B) {
 	// 測試數據路徑
-	jsonPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
-	sqlitePath := "/Users/kimi/go/src/photo-sorter/geodata/states.sqlite"
+	jsonPath := filepath.Join("..", "..", "..", "geodata", "states.geojson")
+	sqlitePath := filepath.Join("..", "..", "..", "geodata", "states.sqlite")
 
 	// 創建 JSON 地理編碼器
 	jsonGeocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
@@ -430,8 +452,8 @@ func BenchmarkGeocoderComparisonSingleLocation(b *testing.B) {
 
 func BenchmarkGeocoderComparisonWithMemory(b *testing.B) {
 	// 測試數據路徑
-	jsonPath := "/Users/kimi/go/src/photo-sorter/geodata/states.geojson"
-	sqlitePath := "/Users/kimi/go/src/photo-sorter/geodata/states.sqlite"
+	jsonPath := filepath.Join("..", "..", "..", "geodata", "states.geojson")
+	sqlitePath := filepath.Join("..", "..", "..", "geodata", "states.sqlite")
 
 	// 創建 JSON 地理編碼器
 	jsonGeocoder, err := NewGeocoder(GeoTypeJson, map[string]interface{}{
