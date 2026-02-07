@@ -33,7 +33,7 @@ func TestGeocoderLocationMapping(t *testing.T) {
 		"db_path": testJSONPath,
 	})
 	if err != nil {
-		t.Fatalf("建立地理編碼器失敗: %v", err)
+		t.Fatalf("failed to create geocoder: %v", err)
 	}
 
 	tests := []struct {
@@ -108,12 +108,12 @@ func TestGeocoderLocationMapping(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			location, err := geocoder.GetLocationFromGPS(tt.lat, tt.lon)
 			if err != nil {
-				t.Errorf("取得位置失敗: %v", err)
+				t.Errorf("failed to get location: %v", err)
 				return
 			}
 
 			if location.City != tt.expected {
-				t.Errorf("位置不匹配，期望 %s，得到 %s", tt.expected, location.City)
+				t.Errorf("unexpected city: want %s got %s", tt.expected, location.City)
 			}
 		})
 	}
@@ -127,7 +127,7 @@ func TestGeocoderLocationMappingSpatialite(t *testing.T) {
 		"db_path": testJSONPath,
 	})
 	if err != nil {
-		t.Fatalf("建立地理編碼器失敗: %v", err)
+		t.Fatalf("failed to create geocoder: %v", err)
 	}
 
 	tests := []struct {
@@ -202,12 +202,12 @@ func TestGeocoderLocationMappingSpatialite(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			location, err := geocoder.GetLocationFromGPS(tt.lat, tt.lon)
 			if err != nil {
-				t.Errorf("取得位置失敗: %v", err)
+				t.Errorf("failed to get location: %v", err)
 				return
 			}
 
 			if location.City != tt.expected {
-				t.Errorf("位置不匹配，期望 %s，得到 %s", tt.expected, location.City)
+				t.Errorf("unexpected city: want %s got %s", tt.expected, location.City)
 			}
 		})
 	}
@@ -219,7 +219,7 @@ func BenchmarkGetLocationFromGPS(b *testing.B) {
 		"db_path": testJSONPath,
 	})
 	if err != nil {
-		b.Fatalf("建立地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create geocoder: %v", err)
 	}
 
 	// 測試不同位置的效能
@@ -241,7 +241,7 @@ func BenchmarkGetLocationFromGPS(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, err := geocoder.GetLocationFromGPS(tc.lat, tc.lon)
 				if err != nil {
-					b.Fatalf("取得位置失敗: %v", err)
+					b.Fatalf("failed to get location: %v", err)
 				}
 			}
 		})
@@ -252,20 +252,20 @@ func BenchmarkGetLocationFromGPSWithPprof(b *testing.B) {
 	// 建立 CPU profile
 	cpuFile, err := os.Create("cpu.prof")
 	if err != nil {
-		b.Fatalf("建立 CPU profile 失敗: %v", err)
+		b.Fatalf("failed to create CPU profile: %v", err)
 	}
 	defer cpuFile.Close()
 
 	// 開始 CPU profiling
 	if err := pprof.StartCPUProfile(cpuFile); err != nil {
-		b.Fatalf("啟動 CPU profile 失敗: %v", err)
+		b.Fatalf("failed to start CPU profile: %v", err)
 	}
 	defer pprof.StopCPUProfile()
 
 	// 建立記憶體 profile
 	memFile, err := os.Create("mem.prof")
 	if err != nil {
-		b.Fatalf("建立記憶體 profile 失敗: %v", err)
+		b.Fatalf("failed to create memory profile: %v", err)
 	}
 	defer memFile.Close()
 	defer pprof.WriteHeapProfile(memFile)
@@ -276,7 +276,7 @@ func BenchmarkGetLocationFromGPSWithPprof(b *testing.B) {
 		"db_path": testJSONPath,
 	})
 	if err != nil {
-		b.Fatalf("建立地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create geocoder: %v", err)
 	}
 
 	// 測試不同位置的效能
@@ -298,7 +298,7 @@ func BenchmarkGetLocationFromGPSWithPprof(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, err := geocoder.GetLocationFromGPS(tc.lat, tc.lon)
 				if err != nil {
-					b.Fatalf("取得位置失敗: %v", err)
+					b.Fatalf("failed to get location: %v", err)
 				}
 			}
 		})
@@ -314,7 +314,7 @@ func TestSpatialiteGeocoder(t *testing.T) {
 
 	geocoder, err := NewGeocoder(GeoTypeSpatialite, options)
 	if err != nil {
-		t.Skipf("無法創建 Spatialite 地理編碼器，跳過測試: %v", err)
+		t.Skipf("failed to create spatialite geocoder, skipping test: %v", err)
 	}
 
 	// 測試台北的座標
@@ -323,12 +323,12 @@ func TestSpatialiteGeocoder(t *testing.T) {
 
 	location, err := geocoder.GetLocationFromGPS(lat, lon)
 	if err != nil {
-		t.Logf("無法找到位置，這可能是正常的: %v", err)
+		t.Logf("failed to get location (may be expected): %v", err)
 		return
 	}
 
 	if location != nil {
-		t.Logf("找到位置: Country=%s, City=%s", location.Country, location.City)
+		t.Logf("found location: Country=%s, City=%s", location.Country, location.City)
 	}
 }
 
@@ -342,7 +342,7 @@ func BenchmarkGeocoderComparison(b *testing.B) {
 		"db_path": jsonPath,
 	})
 	if err != nil {
-		b.Fatalf("建立 JSON 地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create JSON geocoder: %v", err)
 	}
 
 	// 創建 Spatialite 地理編碼器
@@ -350,7 +350,7 @@ func BenchmarkGeocoderComparison(b *testing.B) {
 		"db_path": sqlitePath,
 	})
 	if err != nil {
-		b.Fatalf("建立 Spatialite 地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create spatialite geocoder: %v", err)
 	}
 
 	// 測試不同位置的效能
@@ -379,7 +379,7 @@ func BenchmarkGeocoderComparison(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					_, err := jsonGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
 					if err != nil {
-						b.Fatalf("JSON 地理編碼器取得位置失敗: %v", err)
+						b.Fatalf("JSON geocoder failed to get location: %v", err)
 					}
 				}
 			})
@@ -394,7 +394,7 @@ func BenchmarkGeocoderComparison(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					_, err := sqliteGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
 					if err != nil {
-						b.Fatalf("Spatialite 地理編碼器取得位置失敗: %v", err)
+						b.Fatalf("spatialite geocoder failed to get location: %v", err)
 					}
 				}
 			})
@@ -412,7 +412,7 @@ func BenchmarkGeocoderComparisonSingleLocation(b *testing.B) {
 		"db_path": jsonPath,
 	})
 	if err != nil {
-		b.Fatalf("建立 JSON 地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create JSON geocoder: %v", err)
 	}
 
 	// 創建 Spatialite 地理編碼器
@@ -420,7 +420,7 @@ func BenchmarkGeocoderComparisonSingleLocation(b *testing.B) {
 		"db_path": sqlitePath,
 	})
 	if err != nil {
-		b.Fatalf("建立 Spatialite 地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create spatialite geocoder: %v", err)
 	}
 
 	// 使用台北座標進行測試
@@ -433,7 +433,7 @@ func BenchmarkGeocoderComparisonSingleLocation(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := jsonGeocoder.GetLocationFromGPS(lat, lon)
 			if err != nil {
-				b.Fatalf("JSON 地理編碼器取得位置失敗: %v", err)
+				b.Fatalf("JSON geocoder failed to get location: %v", err)
 			}
 		}
 	})
@@ -444,7 +444,7 @@ func BenchmarkGeocoderComparisonSingleLocation(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := sqliteGeocoder.GetLocationFromGPS(lat, lon)
 			if err != nil {
-				b.Fatalf("Spatialite 地理編碼器取得位置失敗: %v", err)
+				b.Fatalf("spatialite geocoder failed to get location: %v", err)
 			}
 		}
 	})
@@ -460,7 +460,7 @@ func BenchmarkGeocoderComparisonWithMemory(b *testing.B) {
 		"db_path": jsonPath,
 	})
 	if err != nil {
-		b.Fatalf("建立 JSON 地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create JSON geocoder: %v", err)
 	}
 
 	// 創建 Spatialite 地理編碼器
@@ -468,7 +468,7 @@ func BenchmarkGeocoderComparisonWithMemory(b *testing.B) {
 		"db_path": sqlitePath,
 	})
 	if err != nil {
-		b.Fatalf("建立 Spatialite 地理編碼器失敗: %v", err)
+		b.Fatalf("failed to create spatialite geocoder: %v", err)
 	}
 
 	// 測試不同位置的效能
@@ -493,7 +493,7 @@ func BenchmarkGeocoderComparisonWithMemory(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					_, err := jsonGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
 					if err != nil {
-						b.Fatalf("JSON 地理編碼器取得位置失敗: %v", err)
+						b.Fatalf("JSON geocoder failed to get location: %v", err)
 					}
 				}
 			})
@@ -509,7 +509,7 @@ func BenchmarkGeocoderComparisonWithMemory(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					_, err := sqliteGeocoder.GetLocationFromGPS(tc.lat, tc.lon)
 					if err != nil {
-						b.Fatalf("Spatialite 地理編碼器取得位置失敗: %v", err)
+						b.Fatalf("spatialite geocoder failed to get location: %v", err)
 					}
 				}
 			})
