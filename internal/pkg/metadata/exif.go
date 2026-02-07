@@ -3,6 +3,7 @@ package metadata
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -31,7 +32,7 @@ type ExifData struct {
 
 //go:generate mockgen -destination=exif_mock.go -package=metadata . ExifReader
 type ExifReader interface {
-	GetExifData(path string) (*ExifData, error)
+	GetExifData(ctx context.Context, path string) (*ExifData, error)
 	Close() error
 }
 
@@ -41,8 +42,8 @@ func NewLegacyExifReader() ExifReader {
 	return &LegacyExifReader{}
 }
 
-func (r *LegacyExifReader) GetExifData(path string) (*ExifData, error) {
-	return GetExifData(path)
+func (r *LegacyExifReader) GetExifData(ctx context.Context, path string) (*ExifData, error) {
+	return GetExifData(ctx, path)
 }
 
 func (r *LegacyExifReader) Close() error {
@@ -203,11 +204,17 @@ func (r *defaultDeviceResolver) Resolve(exif *ExifData) string {
 	return device
 }
 
-func GetExifData(path string) (*ExifData, error) {
+func GetExifData(ctx context.Context, path string) (*ExifData, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	startTime := time.Now()
-	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-FileModifyDate", "-Model", "-Encoder", "-Description", "-GPSLatitude", "-GPSLongitude", "-ee", path)
+	cmd := exec.CommandContext(ctx, "exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-FileModifyDate", "-Model", "-Encoder", "-Description", "-GPSLatitude", "-GPSLongitude", "-ee", path)
 	output, err := cmd.Output()
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, fmt.Errorf("exiftool execution failed: %v", err)
 	}
 
@@ -266,9 +273,15 @@ func (c *ExiftoolClient) Close() error {
 	return c.cmd.Wait()
 }
 
-func (c *ExiftoolClient) GetExifData(path string) (*ExifData, error) {
+func (c *ExiftoolClient) GetExifData(ctx context.Context, path string) (*ExifData, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if c == nil {
-		return GetExifData(path)
+		return GetExifData(ctx, path)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	c.mu.Lock()
@@ -299,20 +312,46 @@ func (c *ExiftoolClient) GetExifData(path string) (*ExifData, error) {
 		return nil, fmt.Errorf("failed to flush exiftool stdin: %v", err)
 	}
 
-	var buf bytes.Buffer
-	for {
-		line, err := c.stdout.ReadString('\n')
-		if err != nil {
-			return nil, fmt.Errorf("failed to read exiftool output: %v", err)
+	type readResult struct {
+		data []byte
+		err  error
+	}
+	resultCh := make(chan readResult, 1)
+	go func() {
+		var buf bytes.Buffer
+		for {
+			line, err := c.stdout.ReadString('\n')
+			if err != nil {
+				resultCh <- readResult{err: fmt.Errorf("failed to read exiftool output: %v", err)}
+				return
+			}
+			if strings.TrimSpace(line) == "{ready}" {
+				resultCh <- readResult{data: buf.Bytes()}
+				return
+			}
+			buf.WriteString(line)
 		}
-		if strings.TrimSpace(line) == "{ready}" {
-			break
+	}()
+
+	var output []byte
+	select {
+	case <-ctx.Done():
+		if c.cmd != nil && c.cmd.Process != nil {
+			_ = c.cmd.Process.Kill()
 		}
-		buf.WriteString(line)
+		return nil, ctx.Err()
+	case result := <-resultCh:
+		if result.err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			return nil, result.err
+		}
+		output = result.data
 	}
 
 	var data []ExifData
-	if err := json.Unmarshal(buf.Bytes(), &data); err != nil {
+	if err := json.Unmarshal(output, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse exiftool output: %v", err)
 	}
 	if len(data) == 0 {

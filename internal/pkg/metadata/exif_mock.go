@@ -5,6 +5,7 @@
 package metadata
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -48,16 +49,16 @@ func (mr *MockExifReaderMockRecorder) Close() *gomock.Call {
 }
 
 // GetExifData mocks base method.
-func (m *MockExifReader) GetExifData(arg0 string) (*ExifData, error) {
+func (m *MockExifReader) GetExifData(arg0 context.Context, arg1 string) (*ExifData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetExifData", arg0)
+	ret := m.ctrl.Call(m, "GetExifData", arg0, arg1)
 	ret0, _ := ret[0].(*ExifData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetExifData indicates an expected call of GetExifData.
-func (mr *MockExifReaderMockRecorder) GetExifData(arg0 interface{}) *gomock.Call {
+func (mr *MockExifReaderMockRecorder) GetExifData(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExifData", reflect.TypeOf((*MockExifReader)(nil).GetExifData), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExifData", reflect.TypeOf((*MockExifReader)(nil).GetExifData), arg0, arg1)
 }

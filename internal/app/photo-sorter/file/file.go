@@ -26,7 +26,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	}
 
 	// 取得 EXIF 資料
-	exifData, err := exifReader.GetExifData(path)
+	exifData, err := exifReader.GetExifData(ctx, path)
 	if err != nil {
 		logger.LogInfo(path, zap.String("exif_error", "moving file to failed folder"))
 		return HandelFailedFolder(path, cfg)
