@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"photo-sorter/internal/app/photo-sorter/verify"
+	"photo-sorter/internal/app/photosorter/verify"
 )
 
 func main() {

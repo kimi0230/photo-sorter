@@ -11,7 +11,7 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	photosorter "photo-sorter/internal/app/photo-sorter"
+	photosorter "photo-sorter/internal/app/photosorter"
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/logger"
 	"photo-sorter/internal/pkg/metadata"

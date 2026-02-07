@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"photo-sorter/internal/app/photo-sorter/file"
-	"photo-sorter/internal/app/photo-sorter/progress"
-	"photo-sorter/internal/app/photo-sorter/stats"
+	"photo-sorter/internal/app/photosorter/file"
+	"photo-sorter/internal/app/photosorter/progress"
+	"photo-sorter/internal/app/photosorter/stats"
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/logger"
 	"photo-sorter/internal/pkg/metadata"
