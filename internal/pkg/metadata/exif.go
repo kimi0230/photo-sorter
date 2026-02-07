@@ -20,6 +20,7 @@ type ExifData struct {
 	DateTimeCreated string `json:"DateTimeCreated"`
 	FileModifyDate  string `json:"FileModifyDate"`
 	Model           string `json:"Model"`
+	Encoder         string `json:"Encoder"`
 	Description     string `json:"Description"`
 	GPSLatitude     string `json:"GPSLatitude"`
 	GPSLongitude    string `json:"GPSLongitude"`
@@ -97,7 +98,7 @@ func isValidDate(date string) bool {
 
 func GetExifData(path string) (*ExifData, error) {
 	startTime := time.Now()
-	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-FileModifyDate", "-Model", "-Description", "-GPSLatitude", "-GPSLongitude", "-ee", path)
+	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-FileModifyDate", "-Model", "-Encoder", "-Description", "-GPSLatitude", "-GPSLongitude", "-ee", path)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("執行 exiftool 失敗: %v", err)
@@ -221,9 +222,15 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 	}
 
 	// 取得裝置名稱
-	// 優先使用 Model，如果沒有 Model 才檢查 Description 是否為 "Screenshot"
+	// 優先使用 Model，如果沒有 Model 則使用 Encoder，最後才檢查 Description 是否為 "Screenshot"
 	var device string
-	device = getDeviceName(exif.Model)
+	if exif.Model != "" {
+		device = getDeviceName(exif.Model)
+	} else if exif.Encoder != "" {
+		device = getDeviceName(exif.Encoder)
+	} else {
+		device = "unknown_device"
+	}
 	// 如果沒有裝置名稱，且 Description 是 "Screenshot"，則使用 "Screenshot"
 	if device == "unknown_device" && strings.TrimSpace(exif.Description) == "Screenshot" {
 		device = "Screenshot"

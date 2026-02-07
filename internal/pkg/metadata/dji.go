@@ -6,6 +6,7 @@ var DJIModelMap = map[string]string{
 	"AC003":  "DJI_OsmoAction4",
 	"AC004":  "DJI_OsmoAction5_Pro",
 	"OT-210": "DJI_POCKET_2",
+	"PP-101": "DJI_OsmoPocket3",
 }
 
 // GetDJIModelFriendlyName 回傳對應的友善機型名稱，找不到則回傳原字串
