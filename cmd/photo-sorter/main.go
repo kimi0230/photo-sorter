@@ -29,13 +29,13 @@ var (
 )
 
 func init() {
-	flag.StringVar(&srcDir, "src", ".", "原始照片資料夾")
-	flag.StringVar(&dstDir, "dst", ".", "整理後儲存的位置")
-	flag.IntVar(&workers, "workers", runtime.NumCPU(), "最大併發數")
-	flag.StringVar(&configPath, "c", "config.yaml", "配置檔案路徑")
-	flag.BoolVar(&showVer, "version", false, "顯示版本資訊")
-	flag.StringVar(&cpuProfile, "cpuprofile", "", "CPU profile 檔案路徑")
-	flag.StringVar(&memProfile, "memprofile", "", "記憶體 profile 檔案路徑")
+	flag.StringVar(&srcDir, "src", ".", "Source photo directory")
+	flag.StringVar(&dstDir, "dst", ".", "Destination directory for sorted photos")
+	flag.IntVar(&workers, "workers", runtime.NumCPU(), "Maximum number of concurrent workers")
+	flag.StringVar(&configPath, "c", "config.yaml", "Configuration file path")
+	flag.BoolVar(&showVer, "version", false, "Show version information")
+	flag.StringVar(&cpuProfile, "cpuprofile", "", "CPU profile file path")
+	flag.StringVar(&memProfile, "memprofile", "", "Memory profile file path")
 }
 
 func main() {

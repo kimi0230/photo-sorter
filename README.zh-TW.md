@@ -118,7 +118,7 @@ sudo mdutil -i on /
 ### 配置檔案說明
 
 ```yaml
-version: "0.1.23"  # 版本號
+version: "0.1.24"  # 版本號
 
 # 照片分類工具設定檔
 

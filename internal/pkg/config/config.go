@@ -32,8 +32,8 @@ func DefaultConfig() Config {
 	return Config{
 		Workers:           4,
 		DateFormat:        "2006-01",
-		GeoDBPath:         "./internal/pkg/geocoding/geodata/states.geojson",
-		GeocoderType:      geocoding.GeoTypeJson,
+		GeoDBPath:         "./geodata/states.sqlite",
+		GeocoderType:      geocoding.GeoTypeSpatialite,
 		GeoCachePrecision: 2,
 		LogLevel:          "info",
 	}

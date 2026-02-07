@@ -118,7 +118,7 @@ sudo mdutil -i on /
 ### Configuration File
 
 ```yaml
-version: "0.1.23"  # Version number
+version: "0.1.24"  # Version number
 
 # Photo sorting tool configuration file
 

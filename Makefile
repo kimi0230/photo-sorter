@@ -1,4 +1,4 @@
-.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify build-gpmf clean-gpmf clean-test-data
+.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify build-gpmf clean-gpmf clean-test-data bump-version
 
 # 建置參數
 BINARY_NAME=photo-sorter
@@ -94,6 +94,15 @@ clean-test-data:
 	@chmod +x scripts/clean_test_data.sh
 	@./scripts/clean_test_data.sh
 
+# 更新版本號
+bump-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "錯誤：請提供版本號，例如 make bump-version VERSION=0.1.24"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/bump_version.sh
+	@./scripts/bump_version.sh "$(VERSION)"
+
 verify-bin: build-verify
 	./bin/verify -source "$(source)" -target "$(target)"
 
@@ -163,4 +172,6 @@ help:
 	@echo "  clean-gpmf   - 清理 gpmf-parser 建置目錄"
 	@echo ""
 	@echo "其他："
+	@echo "  bump-version - 更新 config/README 的版本號"
+	@echo "                使用方式：make bump-version VERSION=0.1.24"
 	@echo "  help         - 顯示此幫助資訊"
