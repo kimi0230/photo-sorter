@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"photo-sorter/internal/pkg/config"
-	"photo-sorter/internal/pkg/geocoding"
 	"photo-sorter/internal/pkg/logger"
 	"photo-sorter/internal/pkg/metadata"
 	"photo-sorter/internal/pkg/tagger"
@@ -22,82 +21,62 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("處理被取消: %v", ctx.Err())
+		return fmt.Errorf("processing canceled: %v", ctx.Err())
 	default:
 	}
 
 	// 取得 EXIF 資料
 	exifData, err := metadata.GetExifData(path)
 	if err != nil {
-		logger.LogInfo(path, zap.String("取得 EXIF 資料失敗", "將檔案移動到失敗資料夾"))
+		logger.LogInfo(path, zap.String("exif_error", "moving file to failed folder"))
 		return HandelFailedFolder(path, cfg, logger)
 	}
 
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("處理被取消: %v", ctx.Err())
+		return fmt.Errorf("processing canceled: %v", ctx.Err())
 	default:
 	}
 
 	// 取得目標路徑
-	targetPath, err := metadata.GetTargetPath(path, exifData, cfg)
+	targetPath, location, err := metadata.GetTargetPath(path, exifData, cfg)
 	if err != nil {
-		logger.LogError(path, fmt.Sprintf("取得目標路徑失敗: %v", err))
-		return fmt.Errorf("取得目標路徑失敗: %v", err)
+		logger.LogError(path, fmt.Sprintf("Failed to get target path: %v", err))
+		return fmt.Errorf("failed to get target path: %v", err)
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("DryRun: 將移動: %s -> %s\n", path, targetPath)
+		fmt.Printf("DryRun: move %s -> %s\n", path, targetPath)
 		return nil
 	}
 
 	// 移動檔案
 	if err := MoveFile(path, targetPath); err != nil {
-		logger.LogError(path, fmt.Sprintf("移動檔案失敗: %v", err))
-		return fmt.Errorf("移動檔案失敗: %v", err)
+		logger.LogError(path, fmt.Sprintf("Failed to move file: %v", err))
+		return fmt.Errorf("failed to move file: %v", err)
 	}
 
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("處理被取消: %v", ctx.Err())
+		return fmt.Errorf("processing canceled: %v", ctx.Err())
 	default:
 	}
 
-	// 如果有啟用地理位置標籤且有 GPS 資訊，則為目標檔案添加標籤
-	if cfg.EnableGeoTag && exifData.GPSLatitude != "" && exifData.GPSLongitude != "" {
-		lat, err := metadata.ParseGPSString(exifData.GPSLatitude)
-		if err != nil {
-			return fmt.Errorf("解析緯度失敗: %v", err)
-		}
-
-		lon, err := metadata.ParseGPSString(exifData.GPSLongitude)
-		if err != nil {
-			return fmt.Errorf("解析經度失敗: %v", err)
-		}
-
-		if lat != 0 && lon != 0 {
-			geocoder, err := geocoding.NewGeocoder(cfg.GeocoderType, map[string]interface{}{
-				"db_path": cfg.GeoDBPath,
-			})
-			if err == nil {
-				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
-				if err == nil && countryCity != nil {
-					if !cfg.DryRun {
-						fileTagger, err := tagger.NewTagger()
-						if err != nil {
-							return fmt.Errorf("建立標籤實例失敗: %v", err)
-						}
-						tagName := fmt.Sprintf("%s-%s", countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
-						if err := fileTagger.AddTag(targetPath, tagName); err != nil {
-							fmt.Printf("為檔案添加標籤失敗: %v\n", err)
-						}
-					} else {
-						fmt.Printf("DryRun: 為檔案添加標籤: %s\n", targetPath)
-					}
-				}
+	// Add tags when geo tagging is enabled and location is available.
+	if cfg.EnableGeoTag && location != nil {
+		if !cfg.DryRun {
+			fileTagger, err := tagger.NewTagger()
+			if err != nil {
+				return fmt.Errorf("failed to create tagger: %v", err)
 			}
+			tagName := fmt.Sprintf("%s-%s", location.Country, strings.ReplaceAll(location.City, " ", "_"))
+			if err := fileTagger.AddTag(targetPath, tagName); err != nil {
+				fmt.Printf("Failed to add tag: %v\n", err)
+			}
+		} else {
+			fmt.Printf("DryRun: add tag to %s\n", targetPath)
 		}
 	}
 
@@ -109,7 +88,7 @@ func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logge
 	// 建立 unknown_format 資料夾
 	unknownDir := filepath.Join(cfg.DstDir, "unknown_format")
 	if err := os.MkdirAll(unknownDir, 0755); err != nil {
-		logger.LogError(path, fmt.Sprintf("建立 unknown_format 資料夾失敗: %v", err))
+		logger.LogError(path, fmt.Sprintf("Failed to create unknown_format directory: %v", err))
 		return err
 	}
 
@@ -128,7 +107,7 @@ func HandleUnsupportedFile(path string, cfg *config.Config, logger *logger.Logge
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("DryRun: 將移動不支援的檔案: %s -> %s\n", path, targetPath)
+		fmt.Printf("DryRun: move unsupported file %s -> %s\n", path, targetPath)
 		return nil
 	}
 
@@ -141,7 +120,7 @@ func HandelFailedFolder(path string, cfg *config.Config, logger *logger.Logger) 
 	failDir := filepath.Join(cfg.DstDir, "failed_files")
 
 	if err := os.MkdirAll(failDir, 0755); err != nil {
-		logger.LogError(path, fmt.Sprintf("建立 failed_files 資料夾失敗: %v", err))
+		logger.LogError(path, fmt.Sprintf("Failed to create failed_files directory: %v", err))
 		return err
 	}
 
@@ -160,7 +139,7 @@ func HandelFailedFolder(path string, cfg *config.Config, logger *logger.Logger) 
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("DryRun: 將移動失敗的檔案: %s -> %s\n", path, targetPath)
+		fmt.Printf("DryRun: move failed file %s -> %s\n", path, targetPath)
 		return nil
 	}
 	return MoveFile(path, targetPath)
@@ -172,7 +151,7 @@ func MoveFile(src, dst string) error {
 	// 確保目標目錄存在
 	dstDir := filepath.Dir(dst)
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		return fmt.Errorf("建立目標目錄失敗: %v", err)
+		return fmt.Errorf("failed to create destination directory: %v", err)
 	}
 
 	// 嘗試直接移動（同一個檔案系統內）
@@ -184,14 +163,14 @@ func MoveFile(src, dst string) error {
 	// 如果跨檔案系統移動失敗，則複製後刪除
 	// 先複製檔案
 	if err := copyFileForMove(src, dst); err != nil {
-		return fmt.Errorf("複製檔案失敗: %v", err)
+		return fmt.Errorf("failed to copy file: %v", err)
 	}
 
 	// 刪除原始檔案
 	if err := os.Remove(src); err != nil {
 		// 如果刪除失敗，嘗試刪除已複製的檔案
 		os.Remove(dst)
-		return fmt.Errorf("刪除原始檔案失敗: %v", err)
+		return fmt.Errorf("failed to remove source file: %v", err)
 	}
 
 	return nil

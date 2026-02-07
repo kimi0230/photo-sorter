@@ -21,6 +21,6 @@ func NewTagger() (Tagger, error) {
 	case "linux":
 		return NewLinuxTagger(), nil
 	default:
-		return nil, fmt.Errorf("不支援的作業系統: %s", runtime.GOOS)
+		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 }

@@ -30,13 +30,13 @@ func LoadConfig(configPath string) (*Config, error) {
 	// 讀取設定檔
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("讀取設定檔失敗: %v", err)
+		return nil, fmt.Errorf("failed to read config file: %v", err)
 	}
 
 	// 解析 YAML
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("解析設定檔失敗: %v", err)
+		return nil, fmt.Errorf("failed to parse config file: %v", err)
 	}
 
 	// 設定預設值

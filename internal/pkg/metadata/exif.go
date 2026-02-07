@@ -26,6 +26,15 @@ type ExifData struct {
 	GPSLongitude    string `json:"GPSLongitude"`
 }
 
+var exifDateFormats = []string{
+	"2006:01:02 15:04:05",       // Standard EXIF format.
+	"2006:01:02 15:04:05-07:00", // EXIF with timezone.
+	"2006:01:02 15:04:05+07:00", // EXIF with timezone.
+	"2006-01-02 15:04:05",       // ISO format.
+	"2006-01-02 15:04:05-07:00", // ISO with timezone.
+	"2006-01-02 15:04:05+07:00", // ISO with timezone.
+}
+
 // ParseGPSString 將 GPS 字串轉換為浮點數
 // 格式範例: "22 deg 41' 58.80\" N"
 func ParseGPSString(gpsStr string) (float64, error) {
@@ -40,25 +49,25 @@ func ParseGPSString(gpsStr string) (float64, error) {
 	// 分割字串
 	parts := strings.Fields(gpsStr)
 	if len(parts) < 4 {
-		return 0, fmt.Errorf("無效的 GPS 格式: %s", gpsStr)
+		return 0, fmt.Errorf("invalid GPS format: %s", gpsStr)
 	}
 
 	// 解析度數
 	degrees, err := strconv.ParseFloat(parts[0], 64)
 	if err != nil {
-		return 0, fmt.Errorf("解析度數失敗: %v", err)
+		return 0, fmt.Errorf("failed to parse degrees: %v", err)
 	}
 
 	// 解析分數
 	minutes, err := strconv.ParseFloat(strings.TrimSuffix(parts[2], "'"), 64)
 	if err != nil {
-		return 0, fmt.Errorf("解析分數失敗: %v", err)
+		return 0, fmt.Errorf("failed to parse minutes: %v", err)
 	}
 
 	// 解析秒數
 	seconds, err := strconv.ParseFloat(strings.TrimSuffix(parts[3], "\""), 64)
 	if err != nil {
-		return 0, fmt.Errorf("解析秒數失敗: %v", err)
+		return 0, fmt.Errorf("failed to parse seconds: %v", err)
 	}
 
 	// 計算十進位度數
@@ -101,22 +110,22 @@ func GetExifData(path string) (*ExifData, error) {
 	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-FileModifyDate", "-Model", "-Encoder", "-Description", "-GPSLatitude", "-GPSLongitude", "-ee", path)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("執行 exiftool 失敗: %v", err)
+		return nil, fmt.Errorf("exiftool execution failed: %v", err)
 	}
 
 	var data []ExifData
 	if err := json.Unmarshal(output, &data); err != nil {
-		return nil, fmt.Errorf("解析 exiftool 輸出失敗: %v", err)
+		return nil, fmt.Errorf("failed to parse exiftool output: %v", err)
 	}
 
 	if len(data) == 0 {
-		return nil, fmt.Errorf("無法取得檔案資訊")
+		return nil, fmt.Errorf("no file metadata found")
 	}
 
 	// 記錄執行時間
 	executionTime := time.Since(startTime)
 	if executionTime > 3*time.Second {
-		fmt.Printf("警告: exiftool 處理檔案 %s 耗時 %.2f 秒\n", path, executionTime.Seconds())
+		fmt.Printf("Warning: exiftool took %.2f seconds for %s\n", executionTime.Seconds(), path)
 	}
 
 	return &data[0], nil
@@ -149,7 +158,7 @@ func getDeviceName(model string) string {
 	return sanitizeDeviceName(device)
 }
 
-func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, error) {
+func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, *geocoding.CountryCity, error) {
 	// 取得日期（優先順序：CreateDate > DateTimeCreated > MediaCreateDate > FileModifyDate）
 	date := ""
 	if isValidDate(exif.CreateDate) {
@@ -170,18 +179,8 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 		var t time.Time
 		var err error
 
-		// 常見的日期格式
-		dateFormats := []string{
-			"2006:01:02 15:04:05",       // 標準 EXIF 格式
-			"2006:01:02 15:04:05-07:00", // 帶時區的格式
-			"2006:01:02 15:04:05+07:00", // 帶時區的格式
-			"2006-01-02 15:04:05",       // ISO 格式
-			"2006-01-02 15:04:05-07:00", // ISO 帶時區
-			"2006-01-02 15:04:05+07:00", // ISO 帶時區
-		}
-
 		parsed := false
-		for _, format := range dateFormats {
+		for _, format := range exifDateFormats {
 			t, err = time.Parse(format, date)
 			if err == nil {
 				parsed = true
@@ -196,16 +195,17 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 		}
 	}
 
+	var location *geocoding.CountryCity
 	// 如果有啟用地理位置標籤且有 GPS 資訊，則加入地理位置
 	if cfg.EnableGeoTag && exif.GPSLatitude != "" && exif.GPSLongitude != "" {
 		lat, err := ParseGPSString(exif.GPSLatitude)
 		if err != nil {
-			return "", fmt.Errorf("解析緯度失敗: %v", err)
+			return "", nil, fmt.Errorf("failed to parse latitude: %v", err)
 		}
 
 		lon, err := ParseGPSString(exif.GPSLongitude)
 		if err != nil {
-			return "", fmt.Errorf("解析經度失敗: %v", err)
+			return "", nil, fmt.Errorf("failed to parse longitude: %v", err)
 		}
 
 		if lat != 0 && lon != 0 {
@@ -216,6 +216,7 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
 				if err == nil && countryCity != nil {
 					date = fmt.Sprintf("%s-%s-%s", date, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
+					location = countryCity
 				}
 			}
 		}
@@ -239,7 +240,7 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 	// 建立目標路徑
 	targetDir := filepath.Join(cfg.DstDir, date, device)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return "", fmt.Errorf("建立目標資料夾失敗: %v", err)
+		return "", nil, fmt.Errorf("failed to create target directory: %v", err)
 	}
 
 	// 處理檔案名稱衝突
@@ -257,5 +258,5 @@ func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, err
 		counter++
 	}
 
-	return targetPath, nil
+	return targetPath, location, nil
 }

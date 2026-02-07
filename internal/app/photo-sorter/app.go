@@ -47,23 +47,23 @@ func (a *App) Close() error {
 
 // Run 執行應用程式
 func (a *App) Run(ctx context.Context) error {
-	a.logger.LogInfo("開始處理",
-		zap.String("來源資料夾", a.config.SrcDir),
-		zap.String("目標資料夾", a.config.DstDir),
-		zap.Bool("是否啟用驗證", a.config.EnableVerify),
-		zap.Any("忽略的檔案", a.config.Ignore),
-		zap.Any("支援的檔案格式", a.config.Formats),
-		zap.String("日期格式", a.config.DateFormat),
-		zap.Bool("是否啟用地理位置標籤", a.config.EnableGeoTag),
-		zap.String("地理編碼器類型", string(a.config.GeocoderType)),
-		zap.String("日誌等級", a.config.LogLevel),
-		zap.Bool("是否啟用驗證", a.config.EnableVerify),
-		zap.Any("忽略的檔案", a.config.Ignore),
-		zap.Any("支援的檔案格式", a.config.Formats),
+	a.logger.LogInfo("Start processing",
+		zap.String("source_dir", a.config.SrcDir),
+		zap.String("dest_dir", a.config.DstDir),
+		zap.Bool("enable_verify", a.config.EnableVerify),
+		zap.Any("ignored_files", a.config.Ignore),
+		zap.Any("supported_formats", a.config.Formats),
+		zap.String("date_format", a.config.DateFormat),
+		zap.Bool("enable_geo_tag", a.config.EnableGeoTag),
+		zap.String("geocoder_type", string(a.config.GeocoderType)),
+		zap.String("log_level", a.config.LogLevel),
+		zap.Bool("enable_verify", a.config.EnableVerify),
+		zap.Any("ignored_files", a.config.Ignore),
+		zap.Any("supported_formats", a.config.Formats),
 	)
 
 	if err := directory.PrintDirectoryStats(a.config.SrcDir, a.logger); err != nil {
-		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
+		a.logger.LogError("", fmt.Sprintf("Failed to collect directory stats: %v", err))
 	}
 
 	// 啟動進度監控
@@ -78,8 +78,9 @@ func (a *App) Run(ctx context.Context) error {
 	jobs := make(chan string, 100)
 	results := make(chan error, 100)
 
-	// 先計算總檔案數
+	// Scan once to count files and build the job list.
 	totalFiles, ignoredFiles := 0, 0
+	jobList := make([]string, 0, 1024)
 	err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -97,16 +98,32 @@ func (a *App) Run(ctx context.Context) error {
 		if !info.IsDir() {
 			// 檢查是否要忽略此檔案
 			if a.config.ShouldIgnore(path) {
-				a.logger.LogInfo(path, zap.String("忽略的檔案", filepath.Ext(path)))
+				a.logger.LogInfo(path, zap.String("ignored_file_ext", filepath.Ext(path)))
+				a.stats.IncrementIgnoredExt(filepath.Ext(path))
 				ignoredFiles++
 				return nil
 			}
 			totalFiles++
+
+			// 檢查是否為支援的格式
+			if a.config.IsSupportedFormat(path) {
+				jobList = append(jobList, path)
+			} else {
+				// 處理不支援的檔案
+				a.stats.IncrementUnsupportedExt(filepath.Ext(path))
+				if err := file.HandleUnsupportedFile(path, a.config, a.logger); err != nil {
+					a.logger.LogError(path, fmt.Sprintf("Failed to handle unsupported file: %v", err))
+					a.stats.IncrementFailure()
+				} else {
+					a.logger.LogDebug(path, zap.String("unsupported_file_handled", filepath.Ext(path)))
+					a.stats.IncrementSuccess()
+				}
+			}
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("計算總檔案數失敗: %v", err)
+		return fmt.Errorf("failed to count total files: %v", err)
 	}
 
 	// 設定總檔案數
@@ -114,7 +131,7 @@ func (a *App) Run(ctx context.Context) error {
 	a.stats.SetTotalFiles(totalFiles)
 
 	// 啟動工作池
-	fmt.Printf("Workers 數量: %d，需處理總檔案數: %d，忽略的檔案數: %d\n", a.config.Workers, totalFiles, ignoredFiles)
+	fmt.Printf("Workers: %d, total files: %d, ignored files: %d\n", a.config.Workers, totalFiles, ignoredFiles)
 	a.logger.LogInfo("Start Workers",
 		zap.Int("workers", a.config.Workers),
 		zap.Int("total_files", totalFiles),
@@ -129,53 +146,16 @@ func (a *App) Run(ctx context.Context) error {
 		}(i)
 	}
 
-	// 發送工作
+	// Dispatch jobs based on the scanned list.
 	go func() {
 		defer close(jobs)
-		err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
+		for _, path := range jobList {
+			select {
+			case <-ctx.Done():
+				a.logger.LogInfo("Cancel signal received, stop dispatching jobs")
+				return
+			case jobs <- path:
 			}
-
-			// 檢查是否為目標目錄或其子目錄
-			if strings.HasPrefix(path, a.config.DstDir) {
-				if info.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-
-			if !info.IsDir() {
-				// 檢查是否要忽略此檔案
-				if a.config.ShouldIgnore(path) {
-					a.stats.IncrementIgnoredExt(filepath.Ext(path))
-					return nil
-				}
-
-				// 檢查是否為支援的格式
-				if a.config.IsSupportedFormat(path) {
-					select {
-					case <-ctx.Done():
-						a.logger.LogInfo("", zap.String("收到取消信號，停止發送工作", ""))
-						return ctx.Err()
-					case jobs <- path:
-					}
-				} else {
-					// 處理不支援的檔案
-					a.stats.IncrementUnsupportedExt(filepath.Ext(path))
-					if err := file.HandleUnsupportedFile(path, a.config, a.logger); err != nil {
-						a.logger.LogError(path, fmt.Sprintf("處理不支援的檔案失敗: %v", err))
-						a.stats.IncrementFailure()
-					} else {
-						a.logger.LogDebug(path, zap.String("處理不支援的檔案成功", filepath.Ext(path)))
-						a.stats.IncrementSuccess()
-					}
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			fmt.Printf("掃描檔案時發生錯誤: %v\n", err)
 		}
 	}()
 
@@ -189,12 +169,12 @@ func (a *App) Run(ctx context.Context) error {
 	for err := range results {
 		if err != nil {
 			if err.Error() == "context canceled" {
-				a.logger.LogInfo("程式被取消",
+				a.logger.LogInfo("Process canceled",
 					zap.String("status", "canceled"),
 				)
-				return fmt.Errorf("程式被取消")
+				return fmt.Errorf("process canceled")
 			}
-			a.logger.LogError("", fmt.Sprintf("處理檔案失敗: %v", err))
+			a.logger.LogError("", fmt.Sprintf("Failed to process file: %v", err))
 		}
 	}
 
@@ -204,21 +184,21 @@ func (a *App) Run(ctx context.Context) error {
 
 	// 輸出不支援的檔案格式統計
 	if len(stats.UnsupportedExts) > 0 {
-		a.logger.LogInfo("不支援的檔案格式統計",
+		a.logger.LogInfo("Unsupported format stats",
 			zap.Any("unsupported_formats", stats.UnsupportedExts),
 		)
 	}
 
 	// 輸出被忽略的檔案格式統計
 	if len(stats.IgnoredExts) > 0 {
-		a.logger.LogInfo("被忽略的檔案格式統計",
+		a.logger.LogInfo("Ignored format stats",
 			zap.Any("ignored_formats", stats.IgnoredExts),
 		)
 	}
 
 	// 統計每個資料夾的檔案數量
 	if err := directory.PrintDirectoryStats(a.config.DstDir, a.logger); err != nil {
-		a.logger.LogError("", fmt.Sprintf("統計資料夾資訊失敗: %v", err))
+		a.logger.LogError("", fmt.Sprintf("Failed to collect directory stats: %v", err))
 	}
 
 	// 驗證目錄（改用移動後，只需檢查檔案數量）
@@ -246,7 +226,7 @@ func (a *App) Run(ctx context.Context) error {
 			return nil
 		})
 		if err != nil {
-			a.logger.LogError("", fmt.Sprintf("計算來源目錄檔案數失敗: %v", err))
+			a.logger.LogError("", fmt.Sprintf("Failed to count source files: %v", err))
 		}
 
 		// 計算目標目錄檔案數（包含成功處理的檔案和失敗的檔案）
@@ -261,7 +241,7 @@ func (a *App) Run(ctx context.Context) error {
 			return nil
 		})
 		if err != nil {
-			a.logger.LogError("", fmt.Sprintf("計算目標目錄檔案數失敗: %v", err))
+			a.logger.LogError("", fmt.Sprintf("Failed to count target files: %v", err))
 		}
 
 		// 驗證邏輯：
@@ -272,48 +252,48 @@ func (a *App) Run(ctx context.Context) error {
 		// 允許一些誤差（因為可能有其他檔案，如系統檔案等）
 		// 主要檢查目標目錄的檔案數是否合理
 		if targetCount >= expectedTargetCount && sourceCount <= stats.TotalFiles-expectedTargetCount {
-			matchResult = "目錄匹配成功"
-			a.logger.LogInfo("目錄匹配成功",
-				zap.Int("來源目錄剩餘檔案數", sourceCount),
-				zap.Int("目標目錄檔案數", targetCount),
-				zap.Int("成功處理數", stats.SuccessCount),
-				zap.Int("失敗處理數", stats.FailureCount),
-				zap.Int("預期目標目錄檔案數", expectedTargetCount),
+			matchResult = "directory match succeeded"
+			a.logger.LogInfo("Directory match succeeded",
+				zap.Int("source_remaining_files", sourceCount),
+				zap.Int("target_files", targetCount),
+				zap.Int("success_count", stats.SuccessCount),
+				zap.Int("failure_count", stats.FailureCount),
+				zap.Int("expected_target_files", expectedTargetCount),
 			)
 		} else {
-			matchResult = "目錄不匹配"
-			a.logger.LogInfo("目錄不匹配",
-				zap.Int("來源目錄剩餘檔案數", sourceCount),
-				zap.Int("目標目錄檔案數", targetCount),
-				zap.Int("成功處理數", stats.SuccessCount),
-				zap.Int("失敗處理數", stats.FailureCount),
-				zap.Int("預期目標目錄檔案數", expectedTargetCount),
+			matchResult = "directory match failed"
+			a.logger.LogInfo("Directory match failed",
+				zap.Int("source_remaining_files", sourceCount),
+				zap.Int("target_files", targetCount),
+				zap.Int("success_count", stats.SuccessCount),
+				zap.Int("failure_count", stats.FailureCount),
+				zap.Int("expected_target_files", expectedTargetCount),
 			)
 		}
 	}
 
-	a.logger.LogInfo("處理完成",
+	a.logger.LogInfo("Processing completed",
 		zap.Int("total_files", stats.TotalFiles),
 		zap.Int("success_count", stats.SuccessCount),
 		zap.Int("failure_count", stats.FailureCount),
 		zap.String("result", matchResult),
 		zap.Duration("duration", duration),
 	)
-	fmt.Printf("\n========== 處理完成 ==========\n")
-	fmt.Printf("總檔案數: %d\n", stats.TotalFiles)
-	fmt.Printf("成功處理: %d\n", stats.SuccessCount)
-	fmt.Printf("處理失敗: %d\n", stats.FailureCount)
-	fmt.Printf("目錄匹配結果: %s\n", matchResult)
-	fmt.Printf("處理時間: %v\n", duration)
-	fmt.Printf("========== 處理完成 ==========\n")
+	fmt.Printf("\n========== Processing Completed ==========\n")
+	fmt.Printf("Total files: %d\n", stats.TotalFiles)
+	fmt.Printf("Succeeded: %d\n", stats.SuccessCount)
+	fmt.Printf("Failed: %d\n", stats.FailureCount)
+	fmt.Printf("Directory match: %s\n", matchResult)
+	fmt.Printf("Duration: %v\n", duration)
+	fmt.Printf("========== Processing Completed ==========\n")
 
 	// 檢查是否被取消
 	if ctx.Err() != nil {
-		a.logger.LogInfo("程式被取消",
+		a.logger.LogInfo("Process canceled",
 			zap.String("status", "canceled"),
 			zap.Error(ctx.Err()),
 		)
-		return fmt.Errorf("程式被取消: %v", ctx.Err())
+		return fmt.Errorf("process canceled: %v", ctx.Err())
 	}
 
 	return nil
@@ -332,7 +312,7 @@ func (a *App) monitorProgress(ctx context.Context) {
 			processed, total := a.progress.GetStatus()
 			if total > 0 {
 				percentage := float64(processed) / float64(total) * 100
-				fmt.Printf("\r進度: %.1f%% (%d/%d)\n",
+				fmt.Printf("\rProgress: %.1f%% (%d/%d)\n",
 					percentage, processed, total)
 			}
 		}

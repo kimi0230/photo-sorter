@@ -44,7 +44,7 @@ func (d *DirStats) PrintDirStatsRecursive(level int, logger *logger.Logger) {
 
 	// 如果目錄中有檔案，顯示當前目錄的檔案數
 	if currentDirFiles > 0 {
-		logger.LogInfo(fmt.Sprintf("%s%s/ (%d 個檔案)", indent, dirName, currentDirFiles))
+		logger.LogInfo(fmt.Sprintf("%s%s/ (%d files)", indent, dirName, currentDirFiles))
 	} else {
 		logger.LogInfo(fmt.Sprintf("%s%s/", indent, dirName))
 	}
@@ -102,12 +102,12 @@ func PrintDirectoryStats(dir string, logger *logger.Logger) error {
 	}
 
 	// 輸出統計資訊
-	logger.LogInfo("資料夾統計資訊")
+	logger.LogInfo("Directory stats")
 	root.PrintDirStatsRecursive(0, logger)
 
 	// 計算實際的總檔案數
 	actualTotal := root.CalculateTotalFiles()
-	logger.LogInfo(fmt.Sprintf("總計：%d 個檔案", actualTotal))
+	logger.LogInfo(fmt.Sprintf("Total: %d files", actualTotal))
 
 	return nil
 }

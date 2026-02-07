@@ -35,14 +35,14 @@ func NewLogger(logLevel string) (*Logger, error) {
 	// 建立日誌目錄
 	logDir := "logs"
 	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return nil, fmt.Errorf("建立日誌目錄失敗: %v", err)
+		return nil, fmt.Errorf("failed to create log directory: %v", err)
 	}
 
 	// 設定日誌檔案路徑
 	logPath := filepath.Join(logDir, "app.log")
 	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("開啟日誌檔案失敗: %v", err)
+		return nil, fmt.Errorf("failed to open log file: %v", err)
 	}
 
 	// 設定 zap 的編碼器
@@ -94,7 +94,7 @@ func (l *Logger) Close() error {
 }
 
 func (l *Logger) LogError(path string, errMsg string) {
-	l.logger.Error("處理檔案失敗",
+	l.logger.Error("Failed to process file",
 		zap.String("path", path),
 		zap.String("error", errMsg),
 		zap.Time("timestamp", time.Now()),

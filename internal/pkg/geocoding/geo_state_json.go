@@ -26,7 +26,7 @@ func NewGeoStateJson(jsonPath string) (*GeoState, error) {
 
 	// 初始化時載入資料
 	if err := gs.loadGeoJSON(); err != nil {
-		return nil, fmt.Errorf("載入 GeoJSON 失敗: %w", err)
+		return nil, fmt.Errorf("failed to load GeoJSON: %w", err)
 	}
 
 	return gs, nil
@@ -74,7 +74,7 @@ type GeoJSONCollection struct {
 
 func (g *GeoState) GetLocationFromGPS(lat, lon float64) (*CountryCity, error) {
 	if g.collection == nil {
-		return nil, errors.New("GeoJSON 資料未載入")
+		return nil, errors.New("GeoJSON data not loaded")
 	}
 
 	// 檢查每個多邊形是否包含給定的座標

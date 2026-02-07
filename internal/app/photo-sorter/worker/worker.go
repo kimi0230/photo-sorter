@@ -18,23 +18,23 @@ func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- erro
 	for path := range jobs {
 		select {
 		case <-ctx.Done():
-			logger.LogDebug("Worker 收到取消信號",
+			logger.LogDebug("Worker received cancel signal",
 				zap.Int("worker_id", id),
 				zap.String("status", "stopped"),
 			)
 			return
 		default:
-			logger.LogDebug("Worker 正在處理檔案",
+			logger.LogDebug("Worker processing file",
 				zap.Int("worker_id", id),
 				zap.String("path", path),
 			)
 			progress.Update()
 			err := file.ProcessFile(ctx, path, cfg, logger)
 			if err != nil {
-				logger.LogError(path, fmt.Sprintf("Worker %d 處理失敗: %v", id, err))
+				logger.LogError(path, fmt.Sprintf("Worker %d failed: %v", id, err))
 				stats.IncrementFailure()
 			} else {
-				logger.LogDebug("Worker 處理成功",
+				logger.LogDebug("Worker succeeded",
 					zap.Int("worker_id", id),
 					zap.String("path", path),
 				)

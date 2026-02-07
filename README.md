@@ -1,36 +1,38 @@
 # Photo Sorter
 
-這是一個使用 Go 語言開發的照片和影片分類工具，可以根據拍攝時間、裝置型號和地理位置自動整理媒體檔案。
+A photo and video sorting tool developed in Go that automatically organizes media files based on capture time, device model, and geographic location.
 
-**目前只支援 MacOS**
+**Currently only supports macOS**
 
-## 功能特點
+## Features
 
-- 根據拍攝日期（Create Date）自動分類
-- 支援多種媒體格式（JPG、JPEG、HEIC、PNG、MP4、MOV）
-- 自動處理檔案名稱衝突
-- 支援多工處理
-- 提供詳細的處理日誌
-- 支援優雅關閉（Graceful Shutdown）
-- 支援地理位置標記（Geo Tagging）
-- 提供詳細的處理統計資訊
+- Automatic sorting by capture date (Create Date)
+- Support for multiple media formats (JPG, JPEG, HEIC, PNG, MP4, MOV, GIF, WEBP, HEIF, HEVC, MKV, AVI, WMV, FLV, MPEG, MPG, M4V, BMP, and RAW formats: CR2, CR3, NEF, NRW, ARW, RAF, RW2, ORF, PEF, DNG, RWL, RAW)
+- Automatic handling of filename conflicts
+- Multi-threaded processing support
+- Detailed processing logs
+- Graceful shutdown support
+- Geographic location tagging (Geo Tagging)
+- Detailed processing statistics
+- Command-line interface with flexible options
+- Performance profiling support (CPU and memory)
 
-## 系統需求
+## Requirements
 
-- Go 1.23 或更高版本
+- Go 1.23 or higher
 - [exiftool](#exiftool)
 - [spatialite](#spatialite-tools)
 - [tag](#tag)
 
-## 安裝
+## Installation
 
-### 使用 Makefile
+### Using Makefile
 
 ```bash
 make build
 ```
 
-### 使用 Docker
+### Using Docker
 
 ```bash
 docker build -t photo-sorter .
@@ -70,69 +72,121 @@ make
 chmod +x gpmf-parser
 ```
 
-## 使用方法
+## Usage
 
-### 基本使用
+### Basic Usage
 
-**建議先關閉 Spotlight 在執行檔案!!!**
+**It is recommended to disable Spotlight before running the program!!!**
 
 ```sh
-# 暫停 Spotlight：
+# Disable Spotlight:
 sudo mdutil -i off /
 
-# 執行
-./photo-sorter -src {/PAHT/NEED_SORT_FOLDER}
+# Run with source directory
+./photo-sorter -src /path/to/source/folder
 
-# 完成後，重建 Spotlight index：
+# Run with source and destination directories
+./photo-sorter -src /path/to/source/folder -dst /path/to/destination/folder
+
+# Run with custom worker count
+./photo-sorter -src /path/to/source/folder -workers 8
+
+# Run with custom config file
+./photo-sorter -src /path/to/source/folder -c /path/to/config.yaml
+
+# Show version
+./photo-sorter -version
+
+# After completion, rebuild Spotlight index:
 sudo mdutil -E /
 sudo mdutil -i on /
 
 ```
 
-### 配置檔案說明
+### Command Line Options
+
+| Option        | Type   | Default            | Description                                                         |
+|---------------|--------|--------------------|---------------------------------------------------------------------|
+| `-src`        | string | `.`                | Source photo folder path                                            |
+| `-dst`        | string | `.`                | Destination folder for sorted files (if `.`, uses `{src_dir}_sort`) |
+| `-workers`    | int    | `runtime.NumCPU()` | Maximum number of concurrent workers                                |
+| `-c`          | string | `config.yaml`      | Configuration file path                                             |
+| `-version`    | bool   | `false`            | Show version information                                            |
+| `-cpuprofile` | string | ``                 | CPU profile file path (for performance profiling)                   |
+| `-memprofile` | string | ``                 | Memory profile file path (for performance profiling)                |
+
+### Configuration File
 
 ```yaml
-version: "0.1.10"  # 版本號
+version: "0.1.22"  # Version number
 
-# 照片分類工具設定檔
+# Photo sorting tool configuration file
 
-# 原始照片資料夾路徑
+# Source photo folder path
 src_dir: "source_media"
 
-# 整理後儲存的位置
+# Destination folder for sorted files (if empty, defaults to {src_dir}_sort)
 dst_dir: ""
 
-# 是否為乾跑模式（只顯示將要移動的檔案，不實際執行）
+# Number of concurrent workers (default: 4)
+workers: 4
+
+# Dry run mode (only shows files that will be moved, does not actually execute)
 dry_run: false
 
-# 日期格式：YYYY-MM-DD (2006-01-02) 或 YYYY-MM (2006-01)
+# Date format: YYYY-MM-DD (2006-01-02) or YYYY-MM (2006-01)
 date_format: "2006-01"
 
-# 是否啟用地理位置標籤
+# Enable geographic location tagging
 enable_geo_tag: true
 
-# GeoJSON 檔案路徑
-geo_json_path: "./geodata/states.geojson"
+# Geo database file path (supports .geojson or .sqlite)
+# Options: ./geodata/states.geojson or ./geodata/states.sqlite
+geo_db_path: "./geodata/states.sqlite"
 
-# 地理編碼器類型
-geocoder_type: "geo_state"
+# Geocoder type: "geo_json" or "geo_spatialite"
+geocoder_type: "geo_spatialite"
 
-# 日誌等級設定 (debug, info, warn, error)
+# Log level (debug, info, warn, error)
 log_level: "info"
 
-# 是否啟用驗證
+# Enable verification
 enable_verify: true
 
-# 支援的檔案格式
+# Supported file formats
 formats:
   - ".jpg"
   - ".jpeg"
   - ".heic"
   - ".png"
   - ".mp4"
-  - ".mov" 
+  - ".mov"
+  - ".gif"
+  - ".webp"
+  - ".heif"
+  - ".hevc"
+  - ".mkv"
+  - ".avi"
+  - ".wmv"
+  - ".flv"
+  - ".mpeg"
+  - ".mpg"
+  - ".m4v"
+  - ".bmp"
+  - ".cr2"
+  - ".cr3"
+  - ".nef"
+  - ".nrw"
+  - ".arw"
+  - ".raf"
+  - ".rw2"
+  - ".orf"
+  - ".pef"
+  - ".dng"
+  - ".rwl"
+  - ".raw"
   
-# 要忽略的檔案類型
+# File types to ignore
 ignore:
   - ".git"
   - ".gitignore"
@@ -148,13 +202,13 @@ ignore:
 
 ```
 
-### 使用 Docker
+### Using Docker
 
 ```bash
 docker run -v /path/to/photos:/app/input -v /path/to/output:/app/output photo-sorter -config config.yaml
 ```
 
-## 輸出結構
+## Output Structure
 
 ```
 sorted_media/
@@ -171,19 +225,19 @@ sorted_media/
     └── document.pdf
 ```
 
-## 錯誤處理
+## Error Handling
 
-- 日誌檔案會記錄在 logs/app.log
-- 缺少日期資訊的檔案會被歸類到 unknown_date 資料夾
-- 缺少裝置資訊的檔案會被歸類到 unknown_device 資料夾
-- 不支援的檔案格式會被歸類到 unknown_format 資料夾
+- Log files are recorded in logs/app.log
+- Files without date information are categorized into the unknown_date folder
+- Files without device information are categorized into the unknown_device folder
+- Unsupported file formats are categorized into the unknown_format folder
 
-## 處理統計
+## Processing Statistics
 
-程式會提供詳細的處理統計資訊：
-- 總檔案數
-- 成功處理的檔案數
-- 處理失敗的檔案數
-- 處理時間
-- 不支援的檔案格式統計
-- 目錄結構及檔案數量統計
+The program provides detailed processing statistics:
+- Total number of files
+- Number of successfully processed files
+- Number of failed files
+- Processing time
+- Statistics of unsupported file formats
+- Directory structure and file count statistics
