@@ -17,7 +17,7 @@ import (
 )
 
 // ProcessFile 處理單個檔案
-func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *logger.Logger) error {
+func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *logger.Logger, taggerProvider func() (tagger.Tagger, error)) error {
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
@@ -66,8 +66,11 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 
 	// Add tags when geo tagging is enabled and location is available.
 	if cfg.EnableGeoTag && location != nil {
+		if taggerProvider == nil {
+			return fmt.Errorf("tagger provider is nil")
+		}
 		if !cfg.DryRun {
-			fileTagger, err := tagger.NewTagger()
+			fileTagger, err := taggerProvider()
 			if err != nil {
 				return fmt.Errorf("failed to create tagger: %v", err)
 			}

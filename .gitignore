@@ -1,7 +1,12 @@
 source_media
 source_media_sort
+source_media copy
 logs
 vsizip
 
-cpu.prof
-mem.prof
+# prof
+*.prof
+
+# Temporary files
+*.bak
+*.backup
