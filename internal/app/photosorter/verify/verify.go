@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"photo-sorter/internal/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 // CompareResult 儲存比對結果
@@ -141,25 +145,18 @@ func getFileList(dir string) ([]string, error) {
 }
 
 // PrintResult 印出比對結果
-func PrintResult(result *CompareResult) {
-	fmt.Println("檔案差異：")
-	fmt.Println("----------------------------------------")
-
-	if len(result.OnlyInSource) > 0 {
-		fmt.Println("\n只在來源目錄存在的檔案：")
-		for _, file := range result.OnlyInSource {
-			fmt.Printf("  %s\n", file)
-		}
-	}
-
-	if len(result.OnlyInTarget) > 0 {
-		fmt.Println("\n只在目標目錄存在的檔案：")
-		for _, file := range result.OnlyInTarget {
-			fmt.Printf("  %s\n", file)
-		}
+func PrintResult(result *CompareResult, log *logger.Logger) {
+	if log == nil {
+		return
 	}
 
 	if len(result.OnlyInSource) == 0 && len(result.OnlyInTarget) == 0 {
-		fmt.Println("兩個目錄的檔案完全相同")
+		log.LogInfo("Directories match")
+		return
 	}
+
+	log.LogInfo("Directory differences",
+		zap.Strings("only_in_source", result.OnlyInSource),
+		zap.Strings("only_in_target", result.OnlyInTarget),
+	)
 }

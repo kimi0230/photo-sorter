@@ -29,7 +29,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	exifData, err := exifReader.GetExifData(ctx, path)
 	if err != nil {
 		logger.LogInfo(path, zap.String("exif_error", "moving file to failed folder"))
-		return HandelFailedFolder(path, cfg)
+		return HandelFailedFolder(path, cfg, logger)
 	}
 
 	// 檢查 context 是否已取消
@@ -40,13 +40,18 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	}
 
 	// 取得目標路徑
-	targetPath, location, err := metadata.GetTargetPathWithGeoResolver(path, exifData, cfg, geoResolver)
+	targetPath, location, err := GetTargetPathWithGeoResolver(path, exifData, cfg, geoResolver)
 	if err != nil {
 		return fmt.Errorf("failed to get target path: %v", err)
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("DryRun: move %s -> %s\n", path, targetPath)
+		if logger != nil {
+			logger.LogInfo("DryRun: move file",
+				zap.String("source", path),
+				zap.String("destination", targetPath),
+			)
+		}
 		return nil
 	}
 
@@ -67,17 +72,28 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 		if taggerProvider == nil {
 			return fmt.Errorf("tagger provider is nil")
 		}
+		tagName := fmt.Sprintf("%s-%s", location.Country, strings.ReplaceAll(location.City, " ", "_"))
 		if !cfg.DryRun {
 			fileTagger, err := taggerProvider()
 			if err != nil {
 				return fmt.Errorf("failed to create tagger: %v", err)
 			}
-			tagName := fmt.Sprintf("%s-%s", location.Country, strings.ReplaceAll(location.City, " ", "_"))
 			if err := fileTagger.AddTag(targetPath, tagName); err != nil {
-				fmt.Printf("Failed to add tag: %v\n", err)
+				if logger != nil {
+					logger.LogWarn("Failed to add tag",
+						zap.String("path", targetPath),
+						zap.String("tag", tagName),
+						zap.Error(err),
+					)
+				}
 			}
 		} else {
-			fmt.Printf("DryRun: add tag to %s\n", targetPath)
+			if logger != nil {
+				logger.LogInfo("DryRun: add tag",
+					zap.String("path", targetPath),
+					zap.String("tag", tagName),
+				)
+			}
 		}
 	}
 
@@ -85,7 +101,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 }
 
 // HandleUnsupportedFile 處理不支援的檔案
-func HandleUnsupportedFile(path string, cfg *config.Config) error {
+func HandleUnsupportedFile(path string, cfg *config.Config, log *logger.Logger) error {
 	// 建立 unknown_format 資料夾
 	unknownDir := filepath.Join(cfg.DstDir, "unknown_format")
 	if err := os.MkdirAll(unknownDir, 0755); err != nil {
@@ -107,7 +123,12 @@ func HandleUnsupportedFile(path string, cfg *config.Config) error {
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("DryRun: move unsupported file %s -> %s\n", path, targetPath)
+		if log != nil {
+			log.LogInfo("DryRun: move unsupported file",
+				zap.String("source", path),
+				zap.String("destination", targetPath),
+			)
+		}
 		return nil
 	}
 
@@ -115,7 +136,7 @@ func HandleUnsupportedFile(path string, cfg *config.Config) error {
 }
 
 // HandelFailedFolder 將檔案移動到失敗資料夾
-func HandelFailedFolder(path string, cfg *config.Config) error {
+func HandelFailedFolder(path string, cfg *config.Config, log *logger.Logger) error {
 	// 建立失敗資料夾
 	failDir := filepath.Join(cfg.DstDir, "failed_files")
 
@@ -138,7 +159,12 @@ func HandelFailedFolder(path string, cfg *config.Config) error {
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("DryRun: move failed file %s -> %s\n", path, targetPath)
+		if log != nil {
+			log.LogInfo("DryRun: move failed file",
+				zap.String("source", path),
+				zap.String("destination", targetPath),
+			)
+		}
 		return nil
 	}
 	return MoveFile(path, targetPath)

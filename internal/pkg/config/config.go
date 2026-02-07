@@ -28,6 +28,42 @@ type Config struct {
 	EnableVerify      bool                   `yaml:"enable_verify"`       // 是否啟用驗證
 }
 
+func DefaultConfig() Config {
+	return Config{
+		Workers:           4,
+		DateFormat:        "2006-01",
+		GeoDBPath:         "./internal/pkg/geocoding/geodata/states.geojson",
+		GeocoderType:      geocoding.GeoTypeJson,
+		GeoCachePrecision: 2,
+		LogLevel:          "info",
+	}
+}
+
+func (c *Config) ApplyDefaults() {
+	defaults := DefaultConfig()
+	if c.Workers <= 0 {
+		c.Workers = defaults.Workers
+	}
+	if c.DstDir == "" && c.SrcDir != "" {
+		c.DstDir = c.SrcDir + "_sort"
+	}
+	if c.DateFormat == "" {
+		c.DateFormat = defaults.DateFormat
+	}
+	if c.GeoDBPath == "" {
+		c.GeoDBPath = defaults.GeoDBPath
+	}
+	if c.GeocoderType == "" {
+		c.GeocoderType = defaults.GeocoderType
+	}
+	if c.GeoCachePrecision <= 0 {
+		c.GeoCachePrecision = defaults.GeoCachePrecision
+	}
+	if c.LogLevel == "" {
+		c.LogLevel = defaults.LogLevel
+	}
+}
+
 func LoadConfig(configPath string) (*Config, error) {
 	// 讀取設定檔
 	data, err := os.ReadFile(configPath)
@@ -36,39 +72,12 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	// 解析 YAML
-	var cfg Config
+	cfg := DefaultConfig()
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %v", err)
 	}
 
-	// 設定預設值
-	if cfg.Workers == 0 {
-		cfg.Workers = 4
-	}
-	if cfg.DstDir == "" {
-		cfg.DstDir = cfg.SrcDir + "_sort"
-	}
-	if cfg.DryRun {
-		cfg.DryRun = true
-	}
-	if cfg.DateFormat == "" {
-		cfg.DateFormat = "2006-01"
-	}
-	if cfg.EnableGeoTag {
-		cfg.EnableGeoTag = true
-	}
-	if cfg.GeoDBPath == "" {
-		cfg.GeoDBPath = "./internal/pkg/geocoding/geodata/states.geojson"
-	}
-	if cfg.GeocoderType == "" {
-		cfg.GeocoderType = geocoding.GeoTypeJson
-	}
-	if cfg.GeoCachePrecision <= 0 {
-		cfg.GeoCachePrecision = 2
-	}
-	if cfg.LogLevel == "" {
-		cfg.LogLevel = "info" // 預設日誌等級為 info
-	}
+	cfg.ApplyDefaults()
 
 	return &cfg, nil
 }

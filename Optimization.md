@@ -99,7 +99,7 @@ func (a *App) copyFile(src, dst string) error {
 
 ### 4. 錯誤處理與 API 簡化
 * **a456ed4**：context 取消時的錯誤處理改為較完整的 error wrapping。
-* **a80f597**：簡化 `HandleUnsupportedFile`、`HandelFailedFolder`，移除 logger 參數；更新 `ProcessFile`、Worker 的錯誤處理。
+* **a80f597**：簡化 `HandleUnsupportedFile`、`HandelFailedFolder`，調整 logger 參數使用方式；更新 `ProcessFile`、Worker 的錯誤處理。
 
 ### 5. 版本與 job/result 流程（72733f0）
 * 版本更新至 v0.1.23；重構 job 掃描與結果收集邏輯。

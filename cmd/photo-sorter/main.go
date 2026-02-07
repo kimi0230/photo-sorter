@@ -105,7 +105,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		fmt.Println("\n收到關閉信號，正在優雅關閉...")
+		logger.LogInfo("收到關閉信號，正在優雅關閉...")
 		cancel()
 	}()
 

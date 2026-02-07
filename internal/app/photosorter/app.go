@@ -262,13 +262,6 @@ func (a *App) logSummary(stats *stats.Stats, matchResult string, duration time.D
 		zap.String("result", matchResult),
 		zap.Duration("duration", duration),
 	)
-	fmt.Printf("\n========== Processing Completed ==========\n")
-	fmt.Printf("Total files: %d\n", stats.TotalFiles)
-	fmt.Printf("Succeeded: %d\n", stats.SuccessCount)
-	fmt.Printf("Failed: %d\n", stats.FailureCount)
-	fmt.Printf("Directory match: %s\n", matchResult)
-	fmt.Printf("Duration: %v\n", duration)
-	fmt.Printf("========== Processing Completed ==========\n")
 }
 
 func (a *App) scanJobs() ([]string, int, int, error) {
@@ -304,7 +297,7 @@ func (a *App) scanJobs() ([]string, int, int, error) {
 			} else {
 				// 處理不支援的檔案
 				a.stats.IncrementUnsupportedExt(filepath.Ext(path))
-				if err := processor.HandleUnsupportedFile(path, a.config); err != nil {
+				if err := processor.HandleUnsupportedFile(path, a.config, a.logger); err != nil {
 					a.logger.LogError(path, fmt.Sprintf("Failed to handle unsupported file: %v", err))
 					a.stats.IncrementFailure()
 				} else {
@@ -356,7 +349,7 @@ func (a *App) collectResults(ctx context.Context, results <-chan worker.Result) 
 
 // monitorProgress 監控處理進度
 func (a *App) monitorProgress(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -367,8 +360,12 @@ func (a *App) monitorProgress(ctx context.Context) {
 			processed, total := a.progress.GetStatus()
 			if total > 0 {
 				percentage := float64(processed) / float64(total) * 100
-				fmt.Printf("\rProgress: %.1f%% (%d/%d)\n",
-					percentage, processed, total)
+				a.logger.LogInfo("Progress update",
+					zap.Float64("percent", percentage),
+					zap.Int("processed", processed),
+					zap.Int("total", total),
+				)
+				fmt.Printf("\rProgress: %.1f%% (%d/%d)\n", percentage, processed, total)
 			}
 		}
 	}
