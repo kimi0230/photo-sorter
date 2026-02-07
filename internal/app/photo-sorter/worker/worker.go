@@ -15,8 +15,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// Result reports a file processing outcome.
+type Result struct {
+	Path string
+	Err  error
+}
+
 // Worker 處理檔案的工作者
-func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- error, cfg *config.Config, logger *logger.Logger, progress *progress.Progress, stats *stats.Stats, exifReader metadata.ExifReader, geoResolver metadata.GeoResolver, tagProvider func() (tagger.Tagger, error)) {
+func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- Result, cfg *config.Config, logger *logger.Logger, progress *progress.Progress, stats *stats.Stats, exifReader metadata.ExifReader, geoResolver metadata.GeoResolver, tagProvider func() (tagger.Tagger, error)) {
 	defer func() {
 		if exifReader == nil {
 			return
@@ -51,7 +57,9 @@ func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- erro
 				)
 				stats.IncrementSuccess()
 			}
-			results <- err
+			if err != nil {
+				results <- Result{Path: path, Err: err}
+			}
 		}
 	}
 }

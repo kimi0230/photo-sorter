@@ -98,7 +98,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	// 建立工作通道
 	jobs := make(chan string, 100)
-	results := make(chan error, 100)
+	results := make(chan worker.Result, 100)
 
 	jobList, totalFiles, ignoredFiles, err := a.scanJobs()
 	if err != nil {
@@ -318,7 +318,7 @@ func (a *App) scanJobs() ([]string, int, int, error) {
 	return jobList, totalFiles, ignoredFiles, err
 }
 
-func (a *App) startWorkers(ctx context.Context, jobs <-chan string, results chan<- error) *sync.WaitGroup {
+func (a *App) startWorkers(ctx context.Context, jobs <-chan string, results chan<- worker.Result) *sync.WaitGroup {
 	var wg sync.WaitGroup
 	for i := 0; i < a.config.Workers; i++ {
 		exifReader, err := a.exifReaderFactory.NewReader()
@@ -338,17 +338,18 @@ func (a *App) startWorkers(ctx context.Context, jobs <-chan string, results chan
 	return &wg
 }
 
-func (a *App) collectResults(ctx context.Context, results <-chan error) error {
-	for err := range results {
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				a.logger.LogInfo("Process canceled",
-					zap.String("status", "canceled"),
-				)
-				return fmt.Errorf("process canceled: %w", err)
-			}
-			a.logger.LogError("", fmt.Sprintf("Failed to process file: %v", err))
+func (a *App) collectResults(ctx context.Context, results <-chan worker.Result) error {
+	for result := range results {
+		if result.Err == nil {
+			continue
 		}
+		if errors.Is(result.Err, context.Canceled) {
+			a.logger.LogInfo("Process canceled",
+				zap.String("status", "canceled"),
+			)
+			return fmt.Errorf("process canceled: %w", result.Err)
+		}
+		a.logger.LogError(result.Path, fmt.Sprintf("Failed to process file: %v", result.Err))
 	}
 	return nil
 }
