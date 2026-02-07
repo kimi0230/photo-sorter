@@ -108,10 +108,10 @@ func (a *App) Run(ctx context.Context) error {
 	a.stats.SetTotalFiles(totalFiles)
 
 	// 啟動工作池
-	fmt.Printf("Workers: %d, total files: %d, ignored files: %d\n", a.config.Workers, totalFiles, ignoredFiles)
 	a.logger.LogInfo("Start Workers",
 		zap.Int("workers", a.config.Workers),
 		zap.Int("total_files", totalFiles),
+		zap.Int("ignored_files", ignoredFiles),
 	)
 
 	wg := a.startWorkers(ctx, jobs, results)

@@ -56,6 +56,10 @@ type ExiftoolClient struct {
 	mu     sync.Mutex
 }
 
+// Warnf is a hook for reporting non-fatal warnings to the caller.
+// By default it does nothing and can be overridden by the CLI/UI layer.
+var Warnf = func(format string, args ...any) {}
+
 type DateResolver interface {
 	Resolve(exif *ExifData, cfg *config.Config) (string, error)
 }
@@ -257,7 +261,7 @@ func GetExifData(path string) (*ExifData, error) {
 	// 記錄執行時間
 	executionTime := time.Since(startTime)
 	if executionTime > 3*time.Second {
-		fmt.Printf("Warning: exiftool took %.2f seconds for %s\n", executionTime.Seconds(), path)
+		Warnf("exiftool took %.2f seconds for %s", executionTime.Seconds(), path)
 	}
 
 	return &data[0], nil

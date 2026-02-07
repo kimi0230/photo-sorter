@@ -14,6 +14,7 @@ import (
 	photosorter "photo-sorter/internal/app/photo-sorter"
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/logger"
+	"photo-sorter/internal/pkg/metadata"
 	"photo-sorter/internal/pkg/version"
 )
 
@@ -85,6 +86,11 @@ func main() {
 		log.Fatalf("建立日誌記錄器失敗: %v", err)
 	}
 	defer logger.Close()
+
+	// 設定 metadata 的警告輸出
+	metadata.Warnf = func(format string, args ...any) {
+		logger.LogWarn(fmt.Sprintf(format, args...))
+	}
 
 	// 建立應用程式
 	app := photosorter.NewApp(cfg, logger)
