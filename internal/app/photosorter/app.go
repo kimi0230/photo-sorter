@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"photo-sorter/internal/app/photosorter/directory"
-	"photo-sorter/internal/app/photosorter/file"
+	"photo-sorter/internal/app/photosorter/processor"
 	"photo-sorter/internal/app/photosorter/progress"
 	"photo-sorter/internal/app/photosorter/stats"
 	"photo-sorter/internal/app/photosorter/worker"
@@ -304,7 +304,7 @@ func (a *App) scanJobs() ([]string, int, int, error) {
 			} else {
 				// 處理不支援的檔案
 				a.stats.IncrementUnsupportedExt(filepath.Ext(path))
-				if err := file.HandleUnsupportedFile(path, a.config); err != nil {
+				if err := processor.HandleUnsupportedFile(path, a.config); err != nil {
 					a.logger.LogError(path, fmt.Sprintf("Failed to handle unsupported file: %v", err))
 					a.stats.IncrementFailure()
 				} else {

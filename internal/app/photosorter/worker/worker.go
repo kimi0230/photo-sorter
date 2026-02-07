@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"photo-sorter/internal/app/photosorter/file"
+	"photo-sorter/internal/app/photosorter/processor"
 	"photo-sorter/internal/app/photosorter/progress"
 	"photo-sorter/internal/app/photosorter/stats"
 	"photo-sorter/internal/pkg/config"
@@ -46,7 +46,7 @@ func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- Resu
 				zap.String("path", path),
 			)
 			progress.Update()
-			err := file.ProcessFile(ctx, path, cfg, logger, exifReader, geoResolver, tagProvider)
+			err := processor.ProcessFile(ctx, path, cfg, logger, exifReader, geoResolver, tagProvider)
 			if err != nil {
 				err = fmt.Errorf("worker %d failed for %s: %w", id, path, err)
 				stats.IncrementFailure()
