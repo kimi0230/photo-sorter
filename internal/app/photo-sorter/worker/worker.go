@@ -9,6 +9,7 @@ import (
 	"photo-sorter/internal/app/photo-sorter/stats"
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/logger"
+	"photo-sorter/internal/pkg/metadata"
 	"photo-sorter/internal/pkg/tagger"
 
 	"go.uber.org/zap"
@@ -18,6 +19,18 @@ import (
 func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- error, cfg *config.Config, logger *logger.Logger, progress *progress.Progress, stats *stats.Stats) {
 	var cachedTagger tagger.Tagger
 	var cachedTaggerErr error
+	exiftoolClient, err := metadata.NewExiftoolClient()
+	if err != nil {
+		logger.LogError("", fmt.Sprintf("Worker %d failed to start exiftool client: %v", id, err))
+	}
+	defer func() {
+		if exiftoolClient != nil {
+			if err := exiftoolClient.Close(); err != nil {
+				logger.LogError("", fmt.Sprintf("Worker %d failed to close exiftool client: %v", id, err))
+			}
+		}
+	}()
+
 	tagProvider := func() (tagger.Tagger, error) {
 		if cachedTagger != nil || cachedTaggerErr != nil {
 			return cachedTagger, cachedTaggerErr
@@ -40,7 +53,7 @@ func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- erro
 				zap.String("path", path),
 			)
 			progress.Update()
-			err := file.ProcessFile(ctx, path, cfg, logger, tagProvider)
+			err := file.ProcessFile(ctx, path, cfg, logger, exiftoolClient, tagProvider)
 			if err != nil {
 				logger.LogError(path, fmt.Sprintf("Worker %d failed: %v", id, err))
 				stats.IncrementFailure()

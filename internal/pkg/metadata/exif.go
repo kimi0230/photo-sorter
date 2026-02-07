@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"photo-sorter/internal/pkg/config"
@@ -24,6 +27,13 @@ type ExifData struct {
 	Description     string `json:"Description"`
 	GPSLatitude     string `json:"GPSLatitude"`
 	GPSLongitude    string `json:"GPSLongitude"`
+}
+
+type ExiftoolClient struct {
+	cmd    *exec.Cmd
+	stdin  *bufio.Writer
+	stdout *bufio.Reader
+	mu     sync.Mutex
 }
 
 var exifDateFormats = []string{
@@ -126,6 +136,99 @@ func GetExifData(path string) (*ExifData, error) {
 	executionTime := time.Since(startTime)
 	if executionTime > 3*time.Second {
 		fmt.Printf("Warning: exiftool took %.2f seconds for %s\n", executionTime.Seconds(), path)
+	}
+
+	return &data[0], nil
+}
+
+func NewExiftoolClient() (*ExiftoolClient, error) {
+	cmd := exec.Command("exiftool", "-stay_open", "True", "-@", "-")
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup exiftool stdout: %v", err)
+	}
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup exiftool stdin: %v", err)
+	}
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start exiftool: %v", err)
+	}
+
+	return &ExiftoolClient{
+		cmd:    cmd,
+		stdin:  bufio.NewWriter(stdinPipe),
+		stdout: bufio.NewReader(stdoutPipe),
+	}, nil
+}
+
+func (c *ExiftoolClient) Close() error {
+	if c == nil {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	fmt.Fprintln(c.stdin, "-stay_open")
+	fmt.Fprintln(c.stdin, "False")
+	_ = c.stdin.Flush()
+
+	return c.cmd.Wait()
+}
+
+func (c *ExiftoolClient) GetExifData(path string) (*ExifData, error) {
+	if c == nil {
+		return GetExifData(path)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	args := []string{
+		"-json",
+		"-CreateDate",
+		"-MediaCreateDate",
+		"-DateTimeCreated",
+		"-FileModifyDate",
+		"-Model",
+		"-Encoder",
+		"-Description",
+		"-GPSLatitude",
+		"-GPSLongitude",
+		"-ee",
+		path,
+		"-execute",
+	}
+
+	for _, arg := range args {
+		if _, err := fmt.Fprintln(c.stdin, arg); err != nil {
+			return nil, fmt.Errorf("failed to write exiftool args: %v", err)
+		}
+	}
+	if err := c.stdin.Flush(); err != nil {
+		return nil, fmt.Errorf("failed to flush exiftool stdin: %v", err)
+	}
+
+	var buf bytes.Buffer
+	for {
+		line, err := c.stdout.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("failed to read exiftool output: %v", err)
+		}
+		if strings.TrimSpace(line) == "{ready}" {
+			break
+		}
+		buf.WriteString(line)
+	}
+
+	var data []ExifData
+	if err := json.Unmarshal(buf.Bytes(), &data); err != nil {
+		return nil, fmt.Errorf("failed to parse exiftool output: %v", err)
+	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("no file metadata found")
 	}
 
 	return &data[0], nil

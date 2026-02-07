@@ -17,7 +17,7 @@ import (
 )
 
 // ProcessFile 處理單個檔案
-func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *logger.Logger, taggerProvider func() (tagger.Tagger, error)) error {
+func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *logger.Logger, exiftool *metadata.ExiftoolClient, taggerProvider func() (tagger.Tagger, error)) error {
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
@@ -26,7 +26,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	}
 
 	// 取得 EXIF 資料
-	exifData, err := metadata.GetExifData(path)
+	exifData, err := exiftool.GetExifData(path)
 	if err != nil {
 		logger.LogInfo(path, zap.String("exif_error", "moving file to failed folder"))
 		return HandelFailedFolder(path, cfg, logger)
