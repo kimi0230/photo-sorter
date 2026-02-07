@@ -56,6 +56,18 @@ type ExiftoolClient struct {
 	mu     sync.Mutex
 }
 
+type DateResolver interface {
+	Resolve(exif *ExifData, cfg *config.Config) (string, error)
+}
+
+type DeviceResolver interface {
+	Resolve(exif *ExifData) string
+}
+
+type GeoResolver interface {
+	Resolve(baseDate string, exif *ExifData, cfg *config.Config) (string, *geocoding.CountryCity, error)
+}
+
 var exifDateFormats = []string{
 	"2006:01:02 15:04:05",       // Standard EXIF format.
 	"2006:01:02 15:04:05-07:00", // EXIF with timezone.
@@ -133,6 +145,96 @@ func isValidDate(date string) bool {
 		}
 	}
 	return true
+}
+
+type defaultDateResolver struct{}
+
+func (r *defaultDateResolver) Resolve(exif *ExifData, cfg *config.Config) (string, error) {
+	// 取得日期（優先順序：CreateDate > DateTimeCreated > MediaCreateDate > FileModifyDate）
+	date := ""
+	if isValidDate(exif.CreateDate) {
+		date = exif.CreateDate
+	} else if isValidDate(exif.DateTimeCreated) {
+		date = exif.DateTimeCreated
+	} else if isValidDate(exif.MediaCreateDate) {
+		date = exif.MediaCreateDate
+	} else if isValidDate(exif.FileModifyDate) {
+		date = exif.FileModifyDate
+	}
+
+	if date == "" {
+		return "unknown_date", nil
+	}
+
+	// 解析日期字串並使用設定檔中的格式
+	// 嘗試多種日期格式
+	var t time.Time
+	var err error
+	for _, format := range exifDateFormats {
+		t, err = time.Parse(format, date)
+		if err == nil {
+			return t.Format(cfg.DateFormat), nil
+		}
+	}
+	return "unknown_date", nil
+}
+
+type defaultDeviceResolver struct{}
+
+func (r *defaultDeviceResolver) Resolve(exif *ExifData) string {
+	// 取得裝置名稱
+	// 優先使用 Model，如果沒有 Model 則使用 Encoder，最後才檢查 Description 是否為 "Screenshot"
+	var device string
+	if exif.Model != "" {
+		device = getDeviceName(exif.Model)
+	} else if exif.Encoder != "" {
+		device = getDeviceName(exif.Encoder)
+	} else {
+		device = "unknown_device"
+	}
+	// 如果沒有裝置名稱，且 Description 是 "Screenshot"，則使用 "Screenshot"
+	if device == "unknown_device" && strings.TrimSpace(exif.Description) == "Screenshot" {
+		device = "Screenshot"
+	}
+	return device
+}
+
+type defaultGeoResolver struct{}
+
+func (r *defaultGeoResolver) Resolve(baseDate string, exif *ExifData, cfg *config.Config) (string, *geocoding.CountryCity, error) {
+	// 如果有啟用地理位置標籤且有 GPS 資訊，則加入地理位置
+	if !cfg.EnableGeoTag || exif.GPSLatitude == "" || exif.GPSLongitude == "" {
+		return baseDate, nil, nil
+	}
+
+	lat, err := ParseGPSString(exif.GPSLatitude)
+	if err != nil {
+		return baseDate, nil, fmt.Errorf("failed to parse latitude: %v", err)
+	}
+
+	lon, err := ParseGPSString(exif.GPSLongitude)
+	if err != nil {
+		return baseDate, nil, fmt.Errorf("failed to parse longitude: %v", err)
+	}
+
+	if lat == 0 || lon == 0 {
+		return baseDate, nil, nil
+	}
+
+	geocoder, err := geocoding.NewGeocoder(cfg.GeocoderType, map[string]interface{}{
+		"db_path": cfg.GeoDBPath,
+	})
+	if err != nil {
+		return baseDate, nil, nil
+	}
+
+	countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
+	if err != nil || countryCity == nil {
+		return baseDate, nil, nil
+	}
+
+	dateWithLocation := fmt.Sprintf("%s-%s-%s", baseDate, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
+	return dateWithLocation, countryCity, nil
 }
 
 func GetExifData(path string) (*ExifData, error) {
@@ -282,83 +384,37 @@ func getDeviceName(model string) string {
 }
 
 func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, *geocoding.CountryCity, error) {
-	// 取得日期（優先順序：CreateDate > DateTimeCreated > MediaCreateDate > FileModifyDate）
-	date := ""
-	if isValidDate(exif.CreateDate) {
-		date = exif.CreateDate
-	} else if isValidDate(exif.DateTimeCreated) {
-		date = exif.DateTimeCreated
-	} else if isValidDate(exif.MediaCreateDate) {
-		date = exif.MediaCreateDate
-	} else if isValidDate(exif.FileModifyDate) {
-		date = exif.FileModifyDate
+	return GetTargetPathWithResolvers(
+		path,
+		exif,
+		cfg,
+		&defaultDateResolver{},
+		&defaultDeviceResolver{},
+		&defaultGeoResolver{},
+	)
+}
+
+func GetTargetPathWithResolvers(
+	path string,
+	exif *ExifData,
+	cfg *config.Config,
+	dateResolver DateResolver,
+	deviceResolver DeviceResolver,
+	geoResolver GeoResolver,
+) (string, *geocoding.CountryCity, error) {
+	// 解析日期
+	date, err := dateResolver.Resolve(exif, cfg)
+	if err != nil {
+		return "", nil, err
 	}
 
-	if date == "" {
-		date = "unknown_date"
-	} else {
-		// 解析日期字串並使用設定檔中的格式
-		// 嘗試多種日期格式
-		var t time.Time
-		var err error
-
-		parsed := false
-		for _, format := range exifDateFormats {
-			t, err = time.Parse(format, date)
-			if err == nil {
-				parsed = true
-				break
-			}
-		}
-
-		if !parsed {
-			date = "unknown_date"
-		} else {
-			date = t.Format(cfg.DateFormat)
-		}
+	// 解析地理位置
+	date, location, err := geoResolver.Resolve(date, exif, cfg)
+	if err != nil {
+		return "", nil, err
 	}
 
-	var location *geocoding.CountryCity
-	// 如果有啟用地理位置標籤且有 GPS 資訊，則加入地理位置
-	if cfg.EnableGeoTag && exif.GPSLatitude != "" && exif.GPSLongitude != "" {
-		lat, err := ParseGPSString(exif.GPSLatitude)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to parse latitude: %v", err)
-		}
-
-		lon, err := ParseGPSString(exif.GPSLongitude)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to parse longitude: %v", err)
-		}
-
-		if lat != 0 && lon != 0 {
-			geocoder, err := geocoding.NewGeocoder(cfg.GeocoderType, map[string]interface{}{
-				"db_path": cfg.GeoDBPath,
-			})
-			if err == nil {
-				countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
-				if err == nil && countryCity != nil {
-					date = fmt.Sprintf("%s-%s-%s", date, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
-					location = countryCity
-				}
-			}
-		}
-	}
-
-	// 取得裝置名稱
-	// 優先使用 Model，如果沒有 Model 則使用 Encoder，最後才檢查 Description 是否為 "Screenshot"
-	var device string
-	if exif.Model != "" {
-		device = getDeviceName(exif.Model)
-	} else if exif.Encoder != "" {
-		device = getDeviceName(exif.Encoder)
-	} else {
-		device = "unknown_device"
-	}
-	// 如果沒有裝置名稱，且 Description 是 "Screenshot"，則使用 "Screenshot"
-	if device == "unknown_device" && strings.TrimSpace(exif.Description) == "Screenshot" {
-		device = "Screenshot"
-	}
+	device := deviceResolver.Resolve(exif)
 
 	// 建立目標路徑
 	targetDir := filepath.Join(cfg.DstDir, date, device)
