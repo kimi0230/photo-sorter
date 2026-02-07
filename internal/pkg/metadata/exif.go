@@ -203,44 +203,6 @@ func (r *defaultDeviceResolver) Resolve(exif *ExifData) string {
 	return device
 }
 
-type defaultGeoResolver struct{}
-
-func (r *defaultGeoResolver) Resolve(baseDate string, exif *ExifData, cfg *config.Config) (string, *geocoding.CountryCity, error) {
-	// 如果有啟用地理位置標籤且有 GPS 資訊，則加入地理位置
-	if !cfg.EnableGeoTag || exif.GPSLatitude == "" || exif.GPSLongitude == "" {
-		return baseDate, nil, nil
-	}
-
-	lat, err := ParseGPSString(exif.GPSLatitude)
-	if err != nil {
-		return baseDate, nil, fmt.Errorf("failed to parse latitude: %v", err)
-	}
-
-	lon, err := ParseGPSString(exif.GPSLongitude)
-	if err != nil {
-		return baseDate, nil, fmt.Errorf("failed to parse longitude: %v", err)
-	}
-
-	if lat == 0 || lon == 0 {
-		return baseDate, nil, nil
-	}
-
-	geocoder, err := geocoding.NewGeocoder(cfg.GeocoderType, map[string]interface{}{
-		"db_path": cfg.GeoDBPath,
-	})
-	if err != nil {
-		return baseDate, nil, nil
-	}
-
-	countryCity, err := geocoder.GetLocationFromGPS(lat, lon)
-	if err != nil || countryCity == nil {
-		return baseDate, nil, nil
-	}
-
-	dateWithLocation := fmt.Sprintf("%s-%s-%s", baseDate, countryCity.Country, strings.ReplaceAll(countryCity.City, " ", "_"))
-	return dateWithLocation, countryCity, nil
-}
-
 func GetExifData(path string) (*ExifData, error) {
 	startTime := time.Now()
 	cmd := exec.Command("exiftool", "-json", "-CreateDate", "-MediaCreateDate", "-DateTimeCreated", "-FileModifyDate", "-Model", "-Encoder", "-Description", "-GPSLatitude", "-GPSLongitude", "-ee", path)
@@ -388,13 +350,20 @@ func getDeviceName(model string) string {
 }
 
 func GetTargetPath(path string, exif *ExifData, cfg *config.Config) (string, *geocoding.CountryCity, error) {
+	return GetTargetPathWithGeoResolver(path, exif, cfg, NewDefaultGeoResolver(cfg))
+}
+
+func GetTargetPathWithGeoResolver(path string, exif *ExifData, cfg *config.Config, geoResolver GeoResolver) (string, *geocoding.CountryCity, error) {
+	if geoResolver == nil {
+		geoResolver = NewDefaultGeoResolver(cfg)
+	}
 	return GetTargetPathWithResolvers(
 		path,
 		exif,
 		cfg,
 		&defaultDateResolver{},
 		&defaultDeviceResolver{},
-		&defaultGeoResolver{},
+		geoResolver,
 	)
 }
 

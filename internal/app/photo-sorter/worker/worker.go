@@ -16,7 +16,7 @@ import (
 )
 
 // Worker 處理檔案的工作者
-func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- error, cfg *config.Config, logger *logger.Logger, progress *progress.Progress, stats *stats.Stats, exifReader metadata.ExifReader, tagProvider func() (tagger.Tagger, error)) {
+func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- error, cfg *config.Config, logger *logger.Logger, progress *progress.Progress, stats *stats.Stats, exifReader metadata.ExifReader, geoResolver metadata.GeoResolver, tagProvider func() (tagger.Tagger, error)) {
 	defer func() {
 		if exifReader == nil {
 			return
@@ -40,7 +40,7 @@ func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- erro
 				zap.String("path", path),
 			)
 			progress.Update()
-			err := file.ProcessFile(ctx, path, cfg, logger, exifReader, tagProvider)
+			err := file.ProcessFile(ctx, path, cfg, logger, exifReader, geoResolver, tagProvider)
 			if err != nil {
 				err = fmt.Errorf("worker %d failed for %s: %w", id, path, err)
 				stats.IncrementFailure()

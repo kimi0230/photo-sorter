@@ -17,6 +17,12 @@ date_format: "2006-01"
 # 是否啟用地理位置標籤
 enable_geo_tag: true
 
+# 是否啟用地理位置快取
+enable_geo_cache: true
+
+# 地理位置快取小數位精度（2:1.1km, 3:110m, 4:11m, 5:1.1m, 6:11cm）
+geo_cache_precision: 2
+
 # Geo DB 檔案路徑 (./geodata/states.geojson / ./geodata/states.sqlite)
 geo_db_path: "./geodata/states.sqlite"
 

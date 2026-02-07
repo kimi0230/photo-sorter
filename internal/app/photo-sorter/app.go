@@ -32,6 +32,7 @@ type App struct {
 	startTime             time.Time
 	taggerProviderFactory tagger.ProviderFactory
 	exifReaderFactory     metadata.ExifReaderFactory
+	geoResolver           metadata.GeoResolver
 }
 
 // NewApp 建立新的應用程式實例
@@ -60,6 +61,7 @@ func NewAppWithFactories(cfg *config.Config, log *logger.Logger, taggerFactory t
 		startTime:             time.Now(),
 		taggerProviderFactory: taggerFactory,
 		exifReaderFactory:     exifFactory,
+		geoResolver:           metadata.NewDefaultGeoResolver(cfg),
 	}
 }
 
@@ -328,10 +330,10 @@ func (a *App) startWorkers(ctx context.Context, jobs <-chan string, results chan
 		}
 		tagProvider := a.taggerProviderFactory.NewProvider()
 		wg.Add(1)
-		go func(id int, reader metadata.ExifReader, tagProvider func() (tagger.Tagger, error)) {
+		go func(id int, reader metadata.ExifReader, geoResolver metadata.GeoResolver, tagProvider func() (tagger.Tagger, error)) {
 			defer wg.Done()
-			worker.Worker(ctx, id, jobs, results, a.config, a.logger, a.progress, a.stats, reader, tagProvider)
-		}(i, exifReader, tagProvider)
+			worker.Worker(ctx, id, jobs, results, a.config, a.logger, a.progress, a.stats, reader, geoResolver, tagProvider)
+		}(i, exifReader, a.geoResolver, tagProvider)
 	}
 	return &wg
 }

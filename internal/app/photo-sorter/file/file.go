@@ -17,7 +17,7 @@ import (
 )
 
 // ProcessFile 處理單個檔案
-func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *logger.Logger, exifReader metadata.ExifReader, taggerProvider func() (tagger.Tagger, error)) error {
+func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *logger.Logger, exifReader metadata.ExifReader, geoResolver metadata.GeoResolver, taggerProvider func() (tagger.Tagger, error)) error {
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
@@ -40,7 +40,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	}
 
 	// 取得目標路徑
-	targetPath, location, err := metadata.GetTargetPath(path, exifData, cfg)
+	targetPath, location, err := metadata.GetTargetPathWithGeoResolver(path, exifData, cfg, geoResolver)
 	if err != nil {
 		return fmt.Errorf("failed to get target path: %v", err)
 	}
