@@ -21,7 +21,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("processing canceled: %v", ctx.Err())
+		return fmt.Errorf("processing canceled: %w", ctx.Err())
 	default:
 	}
 
@@ -35,7 +35,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("processing canceled: %v", ctx.Err())
+		return fmt.Errorf("processing canceled: %w", ctx.Err())
 	default:
 	}
 
@@ -58,7 +58,7 @@ func ProcessFile(ctx context.Context, path string, cfg *config.Config, logger *l
 	// 檢查 context 是否已取消
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("processing canceled: %v", ctx.Err())
+		return fmt.Errorf("processing canceled: %w", ctx.Err())
 	default:
 	}
 

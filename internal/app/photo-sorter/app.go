@@ -128,7 +128,7 @@ func (a *App) Run(ctx context.Context) error {
 			zap.String("status", "canceled"),
 			zap.Error(ctx.Err()),
 		)
-		return fmt.Errorf("process canceled: %v", ctx.Err())
+		return fmt.Errorf("process canceled: %w", ctx.Err())
 	}
 
 	return nil
@@ -313,7 +313,7 @@ func (a *App) collectResults(ctx context.Context, results <-chan error) error {
 				a.logger.LogInfo("Process canceled",
 					zap.String("status", "canceled"),
 				)
-				return fmt.Errorf("process canceled")
+				return fmt.Errorf("process canceled: %w", err)
 			}
 			a.logger.LogError("", fmt.Sprintf("Failed to process file: %v", err))
 		}
