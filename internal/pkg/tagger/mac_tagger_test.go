@@ -6,11 +6,16 @@ package tagger
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
 
 func TestMacOSTagger_AddTag(t *testing.T) {
+	if _, err := exec.LookPath("tag"); err != nil {
+		t.Skipf("missing tag command: %v", err)
+	}
+
 	// Create a test file on disk.
 	testDir := "testdata"
 	if err := os.MkdirAll(testDir, 0755); err != nil {
