@@ -1,4 +1,4 @@
-.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify build-gpmf clean-gpmf
+.PHONY: build clean run docker-build docker-run version help download_data data all test lint count-files verify build-verify build-gpmf clean-gpmf clean-test-data
 
 # 建置參數
 BINARY_NAME=photo-sorter
@@ -88,6 +88,11 @@ verify:
 	fi
 	@chmod +x scripts/verify.sh
 	@./scripts/verify.sh "$(source)" "$(target)"
+
+# 清理測試資料
+clean-test-data:
+	@chmod +x scripts/clean_test_data.sh
+	@./scripts/clean_test_data.sh
 
 verify-bin: build-verify
 	./bin/verify -source "$(source)" -target "$(target)"

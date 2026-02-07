@@ -117,10 +117,101 @@ func (a *App) Run(ctx context.Context) error {
 		return err
 	}
 
-	// 輸出統計資訊
+	statsSnapshot := a.stats.GetStats()
+	matchResult := a.verifyResult(&statsSnapshot)
 	duration := time.Since(startTime)
-	stats := a.stats.GetStats()
+	a.logSummary(&statsSnapshot, matchResult, duration)
 
+	// 檢查是否被取消
+	if ctx.Err() != nil {
+		a.logger.LogInfo("Process canceled",
+			zap.String("status", "canceled"),
+			zap.Error(ctx.Err()),
+		)
+		return fmt.Errorf("process canceled: %v", ctx.Err())
+	}
+
+	return nil
+}
+
+func (a *App) verifyResult(stats *stats.Stats) string {
+	// 驗證目錄（改用移動後，只需檢查檔案數量）
+	matchResult := ""
+	if !a.config.EnableVerify {
+		return matchResult
+	}
+
+	// 計算來源目錄剩餘檔案數（應該只剩下失敗的檔案）
+	sourceCount := 0
+	err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		// 排除目標目錄
+		if strings.HasPrefix(path, a.config.DstDir) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !info.IsDir() {
+			// 排除忽略的檔案
+			if !a.config.ShouldIgnore(path) {
+				sourceCount++
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		a.logger.LogError("", fmt.Sprintf("Failed to count source files: %v", err))
+	}
+
+	// 計算目標目錄檔案數（包含成功處理的檔案和失敗的檔案）
+	targetCount := 0
+	err = filepath.Walk(a.config.DstDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			targetCount++
+		}
+		return nil
+	})
+	if err != nil {
+		a.logger.LogError("", fmt.Sprintf("Failed to count target files: %v", err))
+	}
+
+	// 驗證邏輯：
+	// 1. 目標目錄檔案數應該等於成功處理數 + 失敗處理數（失敗的檔案會移到 failed_files）
+	// 2. 來源目錄應該只剩下未處理的檔案（如果有）
+	expectedTargetCount := stats.SuccessCount + stats.FailureCount
+
+	// 允許一些誤差（因為可能有其他檔案，如系統檔案等）
+	// 主要檢查目標目錄的檔案數是否合理
+	if targetCount >= expectedTargetCount && sourceCount <= stats.TotalFiles-expectedTargetCount {
+		matchResult = "directory match succeeded"
+		a.logger.LogInfo("Directory match succeeded",
+			zap.Int("source_remaining_files", sourceCount),
+			zap.Int("target_files", targetCount),
+			zap.Int("success_count", stats.SuccessCount),
+			zap.Int("failure_count", stats.FailureCount),
+			zap.Int("expected_target_files", expectedTargetCount),
+		)
+	} else {
+		matchResult = "directory match failed"
+		a.logger.LogInfo("Directory match failed",
+			zap.Int("source_remaining_files", sourceCount),
+			zap.Int("target_files", targetCount),
+			zap.Int("success_count", stats.SuccessCount),
+			zap.Int("failure_count", stats.FailureCount),
+			zap.Int("expected_target_files", expectedTargetCount),
+		)
+	}
+
+	return matchResult
+}
+
+func (a *App) logSummary(stats *stats.Stats, matchResult string, duration time.Duration) {
 	// 輸出不支援的檔案格式統計
 	if len(stats.UnsupportedExts) > 0 {
 		a.logger.LogInfo("Unsupported format stats",
@@ -140,77 +231,6 @@ func (a *App) Run(ctx context.Context) error {
 		a.logger.LogError("", fmt.Sprintf("Failed to collect directory stats: %v", err))
 	}
 
-	// 驗證目錄（改用移動後，只需檢查檔案數量）
-	matchResult := ""
-	if a.config.EnableVerify {
-		// 計算來源目錄剩餘檔案數（應該只剩下失敗的檔案）
-		sourceCount := 0
-		err := filepath.Walk(a.config.SrcDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil
-			}
-			// 排除目標目錄
-			if strings.HasPrefix(path, a.config.DstDir) {
-				if info.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !info.IsDir() {
-				// 排除忽略的檔案
-				if !a.config.ShouldIgnore(path) {
-					sourceCount++
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			a.logger.LogError("", fmt.Sprintf("Failed to count source files: %v", err))
-		}
-
-		// 計算目標目錄檔案數（包含成功處理的檔案和失敗的檔案）
-		targetCount := 0
-		err = filepath.Walk(a.config.DstDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil
-			}
-			if !info.IsDir() {
-				targetCount++
-			}
-			return nil
-		})
-		if err != nil {
-			a.logger.LogError("", fmt.Sprintf("Failed to count target files: %v", err))
-		}
-
-		// 驗證邏輯：
-		// 1. 目標目錄檔案數應該等於成功處理數 + 失敗處理數（失敗的檔案會移到 failed_files）
-		// 2. 來源目錄應該只剩下未處理的檔案（如果有）
-		expectedTargetCount := stats.SuccessCount + stats.FailureCount
-
-		// 允許一些誤差（因為可能有其他檔案，如系統檔案等）
-		// 主要檢查目標目錄的檔案數是否合理
-		if targetCount >= expectedTargetCount && sourceCount <= stats.TotalFiles-expectedTargetCount {
-			matchResult = "directory match succeeded"
-			a.logger.LogInfo("Directory match succeeded",
-				zap.Int("source_remaining_files", sourceCount),
-				zap.Int("target_files", targetCount),
-				zap.Int("success_count", stats.SuccessCount),
-				zap.Int("failure_count", stats.FailureCount),
-				zap.Int("expected_target_files", expectedTargetCount),
-			)
-		} else {
-			matchResult = "directory match failed"
-			a.logger.LogInfo("Directory match failed",
-				zap.Int("source_remaining_files", sourceCount),
-				zap.Int("target_files", targetCount),
-				zap.Int("success_count", stats.SuccessCount),
-				zap.Int("failure_count", stats.FailureCount),
-				zap.Int("expected_target_files", expectedTargetCount),
-			)
-		}
-	}
-
 	a.logger.LogInfo("Processing completed",
 		zap.Int("total_files", stats.TotalFiles),
 		zap.Int("success_count", stats.SuccessCount),
@@ -225,17 +245,6 @@ func (a *App) Run(ctx context.Context) error {
 	fmt.Printf("Directory match: %s\n", matchResult)
 	fmt.Printf("Duration: %v\n", duration)
 	fmt.Printf("========== Processing Completed ==========\n")
-
-	// 檢查是否被取消
-	if ctx.Err() != nil {
-		a.logger.LogInfo("Process canceled",
-			zap.String("status", "canceled"),
-			zap.Error(ctx.Err()),
-		)
-		return fmt.Errorf("process canceled: %v", ctx.Err())
-	}
-
-	return nil
 }
 
 func (a *App) scanJobs() ([]string, int, int, error) {
