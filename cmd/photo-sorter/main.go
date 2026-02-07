@@ -52,11 +52,11 @@ func main() {
 	if cpuProfile != "" {
 		f, err := os.Create(cpuProfile)
 		if err != nil {
-			log.Fatalf("建立 CPU profile 失敗: %v", err)
+			log.Fatalf("Failed to create CPU profile: %v", err)
 		}
 		defer f.Close()
 		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatalf("啟動 CPU profile 失敗: %v", err)
+			log.Fatalf("Failed to start CPU profile: %v", err)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -65,7 +65,7 @@ func main() {
 	if memProfile != "" {
 		f, err := os.Create(memProfile)
 		if err != nil {
-			log.Fatalf("建立記憶體 profile 失敗: %v", err)
+			log.Fatalf("Failed to create memory profile: %v", err)
 		}
 		defer f.Close()
 		defer pprof.WriteHeapProfile(f)
@@ -74,7 +74,7 @@ func main() {
 	// 載入配置
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		log.Fatalf("載入設定檔失敗: %v", err)
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
 	// 套用命令列參數
@@ -83,7 +83,7 @@ func main() {
 	// 建立日誌記錄器
 	logger, err := logger.NewLogger(cfg.LogLevel)
 	if err != nil {
-		log.Fatalf("建立日誌記錄器失敗: %v", err)
+		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
@@ -105,12 +105,12 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		logger.LogInfo("收到關閉信號，正在優雅關閉...")
+		logger.LogInfo("Shutdown signal received, performing graceful shutdown")
 		cancel()
 	}()
 
 	// 執行應用程式
 	if err := app.Run(ctx); err != nil {
-		log.Fatalf("執行應用程式失敗: %v", err)
+		log.Fatalf("Failed to execute application: %v", err)
 	}
 }

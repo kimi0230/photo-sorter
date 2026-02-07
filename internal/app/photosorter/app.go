@@ -262,6 +262,14 @@ func (a *App) logSummary(stats *stats.Stats, matchResult string, duration time.D
 		zap.String("result", matchResult),
 		zap.Duration("duration", duration),
 	)
+	fmt.Println("================================================")
+	fmt.Println("Processing completed")
+	fmt.Println("Total files:", stats.TotalFiles)
+	fmt.Println("Success count:", stats.SuccessCount)
+	fmt.Println("Failure count:", stats.FailureCount)
+	fmt.Println("Result:", matchResult)
+	fmt.Println("Duration:", duration)
+	fmt.Println("================================================")
 }
 
 func (a *App) scanJobs() ([]string, int, int, error) {

@@ -12,8 +12,8 @@ import (
 
 func main() {
 	// 定義命令列參數
-	sourceDir := flag.String("source", "", "來源目錄路徑")
-	targetDir := flag.String("target", "", "目標目錄路徑")
+	sourceDir := flag.String("source", "", "Source directory path")
+	targetDir := flag.String("target", "", "Target directory path")
 	flag.Parse()
 
 	log, err := logger.NewLogger("info")
@@ -29,7 +29,7 @@ func main() {
 			zap.String("target", *targetDir),
 		)
 		log.LogInfo("Usage",
-			zap.String("example", "verify -source <來源目錄> -target <目標目錄>"),
+			zap.String("example", "verify -source <Source directory> -target <Target directory>"),
 		)
 		os.Exit(1)
 	}
