@@ -16,28 +16,15 @@ import (
 )
 
 // Worker 處理檔案的工作者
-func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- error, cfg *config.Config, logger *logger.Logger, progress *progress.Progress, stats *stats.Stats) {
-	var cachedTagger tagger.Tagger
-	var cachedTaggerErr error
-	var exifReader metadata.ExifReader
-	exifReader, err := metadata.NewExiftoolClient()
-	if err != nil {
-		logger.LogError("", fmt.Sprintf("Worker %d failed to start exiftool client: %v", id, err))
-		exifReader = metadata.NewLegacyExifReader()
-	}
+func Worker(ctx context.Context, id int, jobs <-chan string, results chan<- error, cfg *config.Config, logger *logger.Logger, progress *progress.Progress, stats *stats.Stats, exifReader metadata.ExifReader, tagProvider func() (tagger.Tagger, error)) {
 	defer func() {
+		if exifReader == nil {
+			return
+		}
 		if err := exifReader.Close(); err != nil {
 			logger.LogError("", fmt.Sprintf("Worker %d failed to close exif reader: %v", id, err))
 		}
 	}()
-
-	tagProvider := func() (tagger.Tagger, error) {
-		if cachedTagger != nil || cachedTaggerErr != nil {
-			return cachedTagger, cachedTaggerErr
-		}
-		cachedTagger, cachedTaggerErr = tagger.NewTagger()
-		return cachedTagger, cachedTaggerErr
-	}
 
 	for path := range jobs {
 		select {

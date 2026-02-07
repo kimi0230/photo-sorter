@@ -17,27 +17,49 @@ import (
 	"photo-sorter/internal/app/photo-sorter/worker"
 	"photo-sorter/internal/pkg/config"
 	"photo-sorter/internal/pkg/logger"
+	"photo-sorter/internal/pkg/metadata"
+	"photo-sorter/internal/pkg/tagger"
 
 	"go.uber.org/zap"
 )
 
 // App 主要應用程式結構
 type App struct {
-	config    *config.Config
-	logger    *logger.Logger
-	stats     *stats.Stats
-	progress  *progress.Progress
-	startTime time.Time
+	config                *config.Config
+	logger                *logger.Logger
+	stats                 *stats.Stats
+	progress              *progress.Progress
+	startTime             time.Time
+	taggerProviderFactory tagger.ProviderFactory
+	exifReaderFactory     metadata.ExifReaderFactory
 }
 
 // NewApp 建立新的應用程式實例
 func NewApp(cfg *config.Config, log *logger.Logger) *App {
+	return NewAppWithFactories(cfg, log, tagger.NewProviderFactory(), metadata.NewExifReaderFactory())
+}
+
+// NewAppWithTaggerProviderFactory allows tests to inject a custom provider factory.
+func NewAppWithTaggerProviderFactory(cfg *config.Config, log *logger.Logger, factory tagger.ProviderFactory) *App {
+	return NewAppWithFactories(cfg, log, factory, metadata.NewExifReaderFactory())
+}
+
+// NewAppWithFactories allows tests to inject custom factories.
+func NewAppWithFactories(cfg *config.Config, log *logger.Logger, taggerFactory tagger.ProviderFactory, exifFactory metadata.ExifReaderFactory) *App {
+	if taggerFactory == nil {
+		taggerFactory = tagger.NewProviderFactory()
+	}
+	if exifFactory == nil {
+		exifFactory = metadata.NewExifReaderFactory()
+	}
 	return &App{
-		config:    cfg,
-		logger:    log,
-		stats:     stats.NewStats(),
-		progress:  progress.NewProgress(),
-		startTime: time.Now(),
+		config:                cfg,
+		logger:                log,
+		stats:                 stats.NewStats(),
+		progress:              progress.NewProgress(),
+		startTime:             time.Now(),
+		taggerProviderFactory: taggerFactory,
+		exifReaderFactory:     exifFactory,
 	}
 }
 
@@ -297,11 +319,19 @@ func (a *App) scanJobs() ([]string, int, int, error) {
 func (a *App) startWorkers(ctx context.Context, jobs <-chan string, results chan<- error) *sync.WaitGroup {
 	var wg sync.WaitGroup
 	for i := 0; i < a.config.Workers; i++ {
+		exifReader, err := a.exifReaderFactory.NewReader()
+		if err != nil {
+			a.logger.LogError("", fmt.Sprintf("Worker %d failed to start exiftool client: %v", i, err))
+		}
+		if exifReader == nil {
+			exifReader = metadata.NewLegacyExifReader()
+		}
+		tagProvider := a.taggerProviderFactory.NewProvider()
 		wg.Add(1)
-		go func(id int) {
+		go func(id int, reader metadata.ExifReader, tagProvider func() (tagger.Tagger, error)) {
 			defer wg.Done()
-			worker.Worker(ctx, id, jobs, results, a.config, a.logger, a.progress, a.stats)
-		}(i)
+			worker.Worker(ctx, id, jobs, results, a.config, a.logger, a.progress, a.stats, reader, tagProvider)
+		}(i, exifReader, tagProvider)
 	}
 	return &wg
 }
