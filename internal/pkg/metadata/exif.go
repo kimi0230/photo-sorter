@@ -29,6 +29,26 @@ type ExifData struct {
 	GPSLongitude    string `json:"GPSLongitude"`
 }
 
+//go:generate mockgen -destination=exif_mock.go -package=metadata . ExifReader
+type ExifReader interface {
+	GetExifData(path string) (*ExifData, error)
+	Close() error
+}
+
+type LegacyExifReader struct{}
+
+func NewLegacyExifReader() ExifReader {
+	return &LegacyExifReader{}
+}
+
+func (r *LegacyExifReader) GetExifData(path string) (*ExifData, error) {
+	return GetExifData(path)
+}
+
+func (r *LegacyExifReader) Close() error {
+	return nil
+}
+
 type ExiftoolClient struct {
 	cmd    *exec.Cmd
 	stdin  *bufio.Writer
