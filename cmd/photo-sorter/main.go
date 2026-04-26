@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"syscall"
+	"time"
 
 	photosorter "photo-sorter/internal/app/photosorter"
 	"photo-sorter/internal/pkg/config"
@@ -96,21 +98,45 @@ func main() {
 	app := photosorter.NewApp(cfg, logger)
 	defer app.Close()
 
-	// 建立 context 用於優雅關閉
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// 建立 context 用於優雅關閉（第一次 SIGINT/SIGTERM 會觸發取消）
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	// 處理信號
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	// 執行應用程式（非阻塞），以便在取消後加上 timeout/第二次中斷處理
+	runResult := make(chan error, 1)
 	go func() {
-		<-sigChan
-		logger.LogInfo("Shutdown signal received, performing graceful shutdown")
-		cancel()
+		runResult <- app.Run(ctx)
 	}()
 
-	// 執行應用程式
-	if err := app.Run(ctx); err != nil {
+	select {
+	case err := <-runResult:
+		if err == nil {
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			os.Exit(130)
+		}
 		log.Fatalf("Failed to execute application: %v", err)
+	case <-ctx.Done():
+		logger.LogInfo("Shutdown signal received, performing graceful shutdown")
+
+		// 第二次中斷直接強制結束；否則等待 graceful 完成，超時後強退。
+		forceSig := make(chan os.Signal, 1)
+		signal.Notify(forceSig, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(forceSig)
+
+		select {
+		case err := <-runResult:
+			if err == nil || errors.Is(err, context.Canceled) {
+				os.Exit(130)
+			}
+			log.Fatalf("Failed to execute application during shutdown: %v", err)
+		case <-forceSig:
+			logger.LogInfo("Second shutdown signal received, forcing exit")
+			os.Exit(1)
+		case <-time.After(15 * time.Second):
+			logger.LogInfo("Graceful shutdown timeout reached, forcing exit")
+			os.Exit(1)
+		}
 	}
 }

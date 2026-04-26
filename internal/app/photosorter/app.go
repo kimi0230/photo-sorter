@@ -141,12 +141,7 @@ func (a *App) Run(ctx context.Context) error {
 		return err
 	}
 
-	statsSnapshot := a.stats.GetStats()
-	matchResult := a.verifyResult(&statsSnapshot)
-	duration := time.Since(startTime)
-	a.logSummary(&statsSnapshot, matchResult, duration)
-
-	// 檢查是否被取消
+	// Skip expensive post-processing when cancellation is requested.
 	if ctx.Err() != nil {
 		a.logger.LogInfo("Process canceled",
 			zap.String("status", "canceled"),
@@ -154,6 +149,11 @@ func (a *App) Run(ctx context.Context) error {
 		)
 		return fmt.Errorf("process canceled: %w", ctx.Err())
 	}
+
+	statsSnapshot := a.stats.GetStats()
+	matchResult := a.verifyResult(&statsSnapshot)
+	duration := time.Since(startTime)
+	a.logSummary(&statsSnapshot, matchResult, duration)
 
 	return nil
 }
@@ -374,6 +374,11 @@ func (a *App) monitorProgress(ctx context.Context) {
 					zap.Int("total", total),
 				)
 				fmt.Printf("\rProgress: %.1f%% (%d/%d)\n", percentage, processed, total)
+
+				// Stop periodic progress logging once all files are processed.
+				if processed >= total {
+					return
+				}
 			}
 		}
 	}
